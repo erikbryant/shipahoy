@@ -107,7 +107,7 @@ def interesting(ships, headingMin=0, headingMax=359):
             continue
 
         details = mmsi_details(mmsi)
-        alert("Ship ahoy!  %s\n%s" % ship, details)
+        alert("Ship ahoy!  %s\n%s" % (ship, details))
 
 
 def main():
