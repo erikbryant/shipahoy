@@ -12,7 +12,8 @@ def alert(message):
     print(message)
 
     # Play an alert tone.
-    pygame.mixer.init()
+    if pygame.mixer.music.get_busy():
+        return
     pygame.mixer.music.load("train_horn.mp3")
     pygame.mixer.music.play()
 
@@ -111,6 +112,8 @@ def interesting(ships, headingMin=0, headingMax=359):
 
 
 def main():
+    pygame.mixer.init()
+
     # The part of the bay visible from our apartment.
     visible = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.50628910495868%2C37.7868980951191%2C-122.37668476535909%2C37.87150340418255&zoom=13&mmsi=0&show_names=1&ref=10800.429711736251&pv=6"
 
