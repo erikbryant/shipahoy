@@ -31,7 +31,7 @@ def alert(mmsi, message):
 
     print(message)
 
-    # Play an alert tone.
+    # Play an alert tone if one is not already playing.
     if pygame.mixer.music.get_busy():
         return
     pygame.mixer.music.load("train_horn.mp3")
