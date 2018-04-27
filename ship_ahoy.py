@@ -5,10 +5,30 @@ import pygame
 
 # Most recent ports of call.
 # https://www.vesselfinder.com/api/pro/portcalls/367673390?s
+# AIS types.
+# https://help.marinetraffic.com/hc/en-us/articles/205579997-What-is-the-significance-of-the-AIS-Shiptype-number-
+
+# TODO:
+# Put exception handling around url calls.
+#  socket.gaierror: [Errno -2] Name or service not known
+#  urllib.error.URLError: <urlopen error [Errno -2] Name or service not known>
+
+
+ShipsSeen = {}
+ExpireSecs = 60
 
 
 # alert() prints a message and plays an alert tone.
-def alert(message):
+# Mute if we have already seen this ship.
+def alert(mmsi, message):
+    now = time.time()
+    last_seen = ShipsSeen.get(mmsi, 0)
+    mute = now - last_seen <= ExpireSecs
+    expire = now + 2*ExpireSecs
+    ShipsSeen[mmsi] = expire
+    if mute:
+        return
+
     print(message)
 
     # Play an alert tone.
@@ -74,6 +94,7 @@ def interesting(ships, headingMin=0, headingMax=359):
 
     uninteresting_mmsis = [
         '367123640',  # Hawk
+        '367389640',  # Oski
     ]
 
     for ship in ships.split('\n'):
@@ -108,7 +129,7 @@ def interesting(ships, headingMin=0, headingMax=359):
             continue
 
         details = mmsi_details(mmsi)
-        alert("Ship ahoy!  %s\n%s" % (ship, details))
+        alert(mmsi, "Ship ahoy!  %s\n%s" % (ship, details))
 
 
 def main():
@@ -132,8 +153,8 @@ def main():
         ships = ships_by_region(outbound)
         interesting(ships=ships, headingMin=225, headingMax=315)
 
-        # Do not spam their interface.
-        time.sleep(60)
+        # Do not spam their web service.
+        time.sleep(ExpireSecs)
 
 
 main()
