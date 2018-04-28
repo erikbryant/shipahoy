@@ -19,9 +19,10 @@ import pygame
 ShipsSeen = {}
 ExpireSecs = 60
 
+# The bounding box for the area visible from our apartment.
 Visible_latA  = 37.8052
 Visible_latB  = 37.8613
-Visible_longA = -122.4844
+Visible_longA = -122.48
 Visible_longB = -122.4092
 
 
@@ -51,8 +52,8 @@ def alert(mmsi='', ship='', details={}, url=''):
     pygame.mixer.music.play()
 
 
-# ships_by_region() returns all of the ships in a given region.
-def ships_by_region(url):
+# web_request() makes a web request.
+def web_request(url='', json=False):
     headers = {}
     headers['Host'] = 'www.vesselfinder.com'
     headers['Connection'] = 'keep-alive'
@@ -60,33 +61,20 @@ def ships_by_region(url):
     headers['X-Requested-With'] = 'XMLHttpRequest'
     headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
     headers['Referer'] = 'https://www.vesselfinder.com/'
-    # headers['Accept-Encoding'] = 'gzip'
     headers['Accept-Language'] = 'en-US,en;q=0.9,fr;q=0.8'
 
     req = urllib.request.Request(url, headers=headers)
-    content_raw = b''
-    with urllib.request.urlopen(req) as response:
-        content_raw += response.read()
+    content = ''
+    try:
+        response = urllib.request.urlopen(req)
+        if json:
+            content = json.load(response)
+        else:
+            content = response.read().decode('utf-8')
+    except urllib.error.URLError as err:
+        print(err)
 
-    return content_raw.decode('utf-8')
-
-
-# mmsi_detail() returns the details for a given MMSI.
-def mmsi_details(mmsi):
-    headers = {}
-    headers['Host'] = 'www.vesselfinder.com'
-    headers['Connection'] = 'keep-alive'
-    headers['Accept'] = '*/*'
-    headers['X-Requested-With'] = 'XMLHttpRequest'
-    headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
-    headers['Referer'] = 'https://www.vesselfinder.com/'
-    # headers['Accept-Encoding'] = 'gzip'
-    headers['Accept-Language'] = 'en-US,en;q=0.9,fr;q=0.8'
-
-    url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
-    req = urllib.request.Request(url, headers=headers)
-    content_raw = urllib.request.urlopen(req)
-    return json.load(content_raw)
+    return content
 
 
 # visible_from_apt() returns a bool indicating whether the ship is visible
@@ -156,7 +144,7 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         name    = fields[6]
 
         # Only look at ships that are moving.
-        if speed < 5:
+        if speed < 4:
             continue
 
         # Only look at ships headed the direction of interest.
@@ -173,8 +161,8 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         if mmsi in uninteresting_mmsis:
             continue
 
-        url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
-        details = mmsi_details(mmsi)
+        mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
+        details = web_request(url=mmsi_url, json=True)
         del details['imo']
         del details['etastamp']
         del details['ship_speed']
@@ -182,6 +170,7 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         del details['timestamp']
         del details['direct_link']
         del details['pn']
+        url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
         alert(mmsi, ship, details, url)
 
 
@@ -199,18 +188,9 @@ def main():
     outbound = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.45043142336208%2C37.79005643280233%2C-122.36597402590112%2C37.94129487900324&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
     while True:
-        # Ships in our visible area.
-        ships = ships_by_region(visible)
+        ships = web_request(url=visible)
         interesting(ships=ships, visible=True)
         
-        # # Inbound ships about to enter our visible area.
-        # ships = ships_by_region(gate)
-        # interesting(ships=ships, headingMin=10, headingMax=170)
-
-        # # Outbound ships about to enter our visible area.
-        # ships = ships_by_region(outbound)
-        # interesting(ships=ships, headingMin=225, headingMax=315)
-
         # Do not spam their web service.
         time.sleep(ExpireSecs)
 
