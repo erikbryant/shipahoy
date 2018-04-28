@@ -27,7 +27,7 @@ Visible_longB = -122.4092
 
 # alert() prints a message and plays an alert tone.
 # Mute if we have already seen this ship.
-def alert(mmsi, message):
+def alert(mmsi='', ship='', details={}, url=''):
     now = time.time()
     last_seen = ShipsSeen.get(mmsi, 0)
     mute = now - last_seen <= ExpireSecs
@@ -36,12 +36,18 @@ def alert(mmsi, message):
     if mute:
         return
 
-    print(message)
+    print("Ship Ahoy!   %s\n%s\n%s\n" % (ship, details, url))
 
-    # Play an alert tone if one is not already playing.
-    if pygame.mixer.music.get_busy():
-        return
-    pygame.mixer.music.load("train_horn.mp3")
+    # Play an alert tone.
+    if 'vehicle' in details['type'].lower():
+        # Vehicle carriers get their own sound. :-)
+        pygame.mixer.music.load("meep.wav")
+    else:
+        # Play the generic ship horn, unless something
+        # is already playing.
+        if pygame.mixer.music.get_busy():
+            return
+        pygame.mixer.music.load("ship_horn.mp3")
     pygame.mixer.music.play()
 
 
@@ -176,7 +182,7 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         del details['timestamp']
         del details['direct_link']
         del details['pn']
-        alert(mmsi, "Ship ahoy!  %s\n%s\n%s\n%f, %f\n" % (ship, details, url, lat1, long1))
+        alert(mmsi, ship, details, url)
 
 
 def main():
