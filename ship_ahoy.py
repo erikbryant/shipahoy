@@ -53,7 +53,7 @@ def alert(mmsi='', ship='', details={}, url=''):
 
 
 # web_request() makes a web request.
-def web_request(url='', json=False):
+def web_request(url='', use_json=False):
     headers = {}
     headers['Host'] = 'www.vesselfinder.com'
     headers['Connection'] = 'keep-alive'
@@ -67,7 +67,7 @@ def web_request(url='', json=False):
     content = ''
     try:
         response = urllib.request.urlopen(req)
-        if json:
+        if use_json:
             content = json.load(response)
         else:
             content = response.read().decode('utf-8')
@@ -162,7 +162,7 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
             continue
 
         mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
-        details = web_request(url=mmsi_url, json=True)
+        details = web_request(url=mmsi_url, use_json=True)
         del details['imo']
         del details['etastamp']
         del details['ship_speed']
