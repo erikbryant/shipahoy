@@ -1,7 +1,10 @@
+import argparse
 import json
 import time
 import urllib.request
 import pygame
+
+import mysql.connector
 
 
 # Most recent ports of call.
@@ -50,6 +53,24 @@ def alert(mmsi='', ship='', details={}, url=''):
             return
         pygame.mixer.music.load("ship_horn.mp3")
     pygame.mixer.music.play()
+
+
+# persist() saves a ship sighting to the database.
+def persist(mmsi='', ship='', details={}, url='', now=time.time()):
+    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cursor = cnx.cursor()
+
+    row = details
+    row['mmsi'] = mmsi
+    row['ship'] = ship
+    row['url'] = url
+    row['date'] = now
+
+    print(row)
+    # mysql_insert(cnx, cursor, row)
+
+    cursor.close()
+    cnx.close()
 
 
 # web_request() makes a web request.
@@ -113,6 +134,7 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
     uninteresting_ais = [
         '0',   # Unknown
         '6',   # Passenger
+        '31',  # Tug
         '36',  # Sailing vessel
         '37',  # Pleasure craft
         '52',  # Tug
@@ -147,13 +169,13 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         if speed < 4:
             continue
 
-        # Only look at ships headed the direction of interest.
-        if course < headingMin or course > headingMax:
-            continue
+        # # Only look at ships headed the direction of interest.
+        # if course < headingMin or course > headingMax:
+        #     continue
 
-        # Only look at ships visible from our apartment?
-        if visible and not visible_from_apt(lat1, long1):
-            continue
+        # # Only look at ships visible from our apartment?
+        # if visible and not visible_from_apt(lat1, long1):
+        #     continue
 
         # Skip 'uninteresting' ships.
         if ais in uninteresting_ais:
@@ -175,22 +197,39 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Ship Ahoy')
+    parser.add_argument('--snapshot', help='exit after one scan pass', action='store_true')
+    args = parser.parse_args()
+
     # Initialize the sound system.
     pygame.mixer.init()
 
     # The part of the bay visible from our apartment.
-    visible = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f&zoom=13&mmsi=0&show_names=1&ref=76653.332556956&pv=6" % (Visible_longA, Visible_latA, Visible_longB, Visible_latB)
+    visible = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % (Visible_longA, Visible_latA, Visible_longB, Visible_latB)
 
     # The part of the bay to the west of our visible area.
-    gate = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.56280995055705%2C37.77840105911834%2C-122.47822461224163%2C37.833635454273335&zoom=13.615634506295129&mmsi=0&show_names=1&ref=53552.672128591235&pv=6"
+    gate = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.56280995055705%2C37.77840105911834%2C-122.47822461224163%2C37.833635454273335"
 
     # The part of the bay to the east of our visible area.
-    outbound = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.45043142336208%2C37.79005643280233%2C-122.36597402590112%2C37.94129487900324&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
+    outbound = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.45043142336208%2C37.79005643280233%2C-122.36597402590112%2C37.94129487900324"
+
+    # New Orleans
+    latA  = 29.54947
+    latB  = 30.07359
+    longA = -90.59662
+    longB = -89.77239
+    new_orleans = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % (longA, latA, longB, latB)
+
+    postfix = "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
     while True:
-        ships = web_request(url=visible)
+        print("Scanning...")
+        ships = web_request(url=new_orleans+postfix)
         interesting(ships=ships, visible=True)
-        
+
+        if args.snapshot:
+            break
+
         # Do not spam their web service.
         time.sleep(ExpireSecs)
 
