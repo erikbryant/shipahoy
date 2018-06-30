@@ -8,8 +8,9 @@ import mysql.connector
 
 
 # Most recent ports of call.
-# https://www.vesselfinder.com/api/pro/portcalls/367673390?s
-# AIS types.
+# https://www.vesselfinder.com/api/pro/portcalls/538007561?s
+#
+# AIS vessel types.
 # https://help.marinetraffic.com/hc/en-us/articles/205579997-What-is-the-significance-of-the-AIS-Shiptype-number-
 
 # TODO:
@@ -17,6 +18,37 @@ import mysql.connector
 #  socket.gaierror: [Errno -2] Name or service not known
 #  urllib.error.URLError: <urlopen error [Errno -2] Name or service not known>
 # Write the detected ships to a database so we can keep stats on them.
+
+# SQL statements
+"""
+ CREATE TABLE ships (
+    mmsi varchar(255),
+    imo varchar(255),
+    name varchar(255),
+    type varchar(255),
+    -- t unixtimestamp,
+    sar boolean,
+    -- dest varchar(255),
+    -- etastamp 'Jun 21, 07:30',
+    -- ship_speed float,
+    -- ship_course float,
+    -- timestamp 'Jun 27, 2018 17:48 UTC',
+    __id varchar(255),
+    -- pn varchar(255),
+    vo int,
+    ff boolean,
+    direct_link varchar(255),
+    draught float,
+    year varchar(255),
+    gt varchar(255),
+    sizes varchar(255),
+    dw varchar(255)
+ );
+
+ CREATE UNIQUE INDEX mmsi ON ships ( mmsi );
+
+ DELETE FROM ships;
+"""
 
 
 ShipsSeen = {}
@@ -55,22 +87,77 @@ def alert(mmsi='', ship='', details={}, url=''):
     pygame.mixer.music.play()
 
 
+keys = [
+    'mmsi',
+    'imo',
+    'name',
+    'type',
+    'sar',
+    '__id',
+    'vo',
+    'ff',
+    'direct_link',
+    'draught',
+    'year',
+    'gt',
+    'sizes',
+    'dw',
+]
+
+
 # persist() saves a ship sighting to the database.
 def persist(mmsi='', ship='', details={}, url='', now=time.time()):
+    INSERT = """
+    INSERT IGNORE INTO ships (
+       mmsi, imo, name, type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, dw
+    )
+    VALUES(
+       %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+    )
+    """
+
+    details['mmsi'] = mmsi
+
+    row = []
+    for key in keys:
+        value = ''
+        if key in details:
+            value = details[key]
+        row.append(value)
+
     cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
     cursor = cnx.cursor()
-
-    row = details
-    row['mmsi'] = mmsi
-    row['ship'] = ship
-    row['url'] = url
-    row['date'] = now
-
-    print(row)
-    # mysql_insert(cnx, cursor, row)
-
+    cursor.execute(INSERT, row)
+    cnx.commit()
     cursor.close()
     cnx.close()
+
+
+# lookup() checks to see if a ship is already in the database.
+def lookup(mmsi):
+    SELECT = """
+    SELECT * FROM ships WHERE mmsi = '%s'
+    """ % mmsi
+
+    details = None
+
+    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cursor = cnx.cursor()
+    cursor.execute(SELECT)
+
+    row = cursor.fetchone()
+    if row is not None:
+        details = {}
+        for k in range(len(row)):
+            details[keys[k]] = ''
+            if row[k] is not None:
+                details[keys[k]] = row[k]
+
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+
+    return details
 
 
 # web_request() makes a web request.
@@ -169,13 +256,13 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         if speed < 4:
             continue
 
-        # # Only look at ships headed the direction of interest.
-        # if course < headingMin or course > headingMax:
-        #     continue
+        # Only look at ships headed the direction of interest.
+        if course < headingMin or course > headingMax:
+            continue
 
-        # # Only look at ships visible from our apartment?
-        # if visible and not visible_from_apt(lat1, long1):
-        #     continue
+        # Only look at ships visible from our apartment?
+        if visible and not visible_from_apt(lat1, long1):
+            continue
 
         # Skip 'uninteresting' ships.
         if ais in uninteresting_ais:
@@ -184,19 +271,30 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
             continue
 
         mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
-        details = web_request(url=mmsi_url, use_json=True)
-        del details['imo']
-        del details['etastamp']
-        del details['ship_speed']
-        del details['ship_course']
-        del details['timestamp']
-        del details['direct_link']
-        del details['pn']
+        details = lookup(mmsi)
+        if details is None:
+            details = web_request(url=mmsi_url, use_json=True)
         url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
+        persist(mmsi, ship, details, url)
         alert(mmsi, ship, details, url)
 
 
 def main():
+    # (longA, latA, longB, latB)
+    # A is the bottom left corner and B is the upper right corner.
+    new_orleans = (-90.60, 29.54, -89.77, 30.08)
+    greater_bay_area = (-123.5,37.2, -121.5, 38.4)
+    # The bay visible from our apartment.
+    visible = (Visible_longA, Visible_latA, Visible_longB, Visible_latB)
+    # The bay to the west of our apartment's visible area.
+    gate = (-122.56280995055705, 37.77840105911834, -122.47822461224163, 37.833635454273335)
+    # The bay to the east of our apartment's visible area.
+    outbound = (-122.45043142336208, 37.79005643280233, -122.36597402590112, 37.94129487900324)
+
+    visible = False
+    url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % greater_bay_area
+    url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
+
     parser = argparse.ArgumentParser(description='Ship Ahoy')
     parser.add_argument('--snapshot', help='exit after one scan pass', action='store_true')
     args = parser.parse_args()
@@ -204,28 +302,10 @@ def main():
     # Initialize the sound system.
     pygame.mixer.init()
 
-    # The part of the bay visible from our apartment.
-    visible = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % (Visible_longA, Visible_latA, Visible_longB, Visible_latB)
-
-    # The part of the bay to the west of our visible area.
-    gate = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.56280995055705%2C37.77840105911834%2C-122.47822461224163%2C37.833635454273335"
-
-    # The part of the bay to the east of our visible area.
-    outbound = "https://www.vesselfinder.com/vesselsonmap?bbox=-122.45043142336208%2C37.79005643280233%2C-122.36597402590112%2C37.94129487900324"
-
-    # New Orleans
-    latA  = 29.54947
-    latB  = 30.07359
-    longA = -90.59662
-    longB = -89.77239
-    new_orleans = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % (longA, latA, longB, latB)
-
-    postfix = "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
-
     while True:
         print("Scanning...")
-        ships = web_request(url=new_orleans+postfix)
-        interesting(ships=ships, visible=True)
+        ships = web_request(url=url)
+        interesting(ships=ships, visible=visible)
 
         if args.snapshot:
             break
