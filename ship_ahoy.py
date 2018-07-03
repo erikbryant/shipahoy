@@ -283,16 +283,16 @@ def main():
     # (longA, latA, longB, latB)
     # A is the bottom left corner and B is the upper right corner.
     new_orleans = (-90.60, 29.54, -89.77, 30.08)
-    greater_bay_area = (-123.5,37.2, -121.5, 38.4)
+    greater_bay_area = (-123.5 ,37.2, -121.5, 38.4)
     # The bay visible from our apartment.
-    visible = (Visible_longA, Visible_latA, Visible_longB, Visible_latB)
+    apt_visible = (Visible_longA, Visible_latA, Visible_longB, Visible_latB)
     # The bay to the west of our apartment's visible area.
     gate = (-122.56280995055705, 37.77840105911834, -122.47822461224163, 37.833635454273335)
     # The bay to the east of our apartment's visible area.
     outbound = (-122.45043142336208, 37.79005643280233, -122.36597402590112, 37.94129487900324)
 
-    visible = False
-    url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % greater_bay_area
+    visible = True
+    url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % apt_visible
     url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
     parser = argparse.ArgumentParser(description='Ship Ahoy')
