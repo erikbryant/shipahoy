@@ -1,4 +1,5 @@
 import argparse
+import geocoder
 import json
 import time
 import urllib.request
@@ -17,6 +18,18 @@ import mysql.connector
 # Put exception handling around url calls.
 #  socket.gaierror: [Errno -2] Name or service not known
 #  urllib.error.URLError: <urlopen error [Errno -2] Name or service not known>
+# Put exception handling around geo calls.
+# $ python3 ship_ahoy.py 
+#  Status code Unknown from http://ipinfo.io/json: ERROR - HTTPConnectionPool(host='ipinfo.io', port=80): Max retries exceeded with url: /json (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7f2df411f8d0>: Failed to establish a new connection: [Errno -2] Name or service not known',))
+#  Traceback (most recent call last):
+#    File "ship_ahoy.py", line 321, in <module>
+#     main()
+#    File "ship_ahoy.py", line 306, in main
+#      url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % bbox(nmiles=500)
+#    File "ship_ahoy.py", line 86, in bbox
+#      lat = geo.latlng[0]
+#  TypeError: 'NoneType' object is not subscriptable
+#
 # Write the detected ships to a database so we can keep stats on them.
 
 # SQL statements
@@ -52,13 +65,45 @@ import mysql.connector
 
 
 ShipsSeen = {}
-ExpireSecs = 60
+ExpireSecs = 90
+# Invariants about a ship. As far as I know, these do not change
+# over the life of the ship (as opposed to course, speed, etc.).
+KEYS = [
+    'mmsi',
+    'imo',
+    'name',
+    'type',
+    'sar',
+    '__id',
+    'vo',
+    'ff',
+    'direct_link',
+    'draught',
+    'year',
+    'gt',
+    'sizes',
+    'dw',
+]
 
-# The bounding box for the area visible from our apartment.
-Visible_latA  = 37.8052
-Visible_latB  = 37.8613
-Visible_longA = -122.48
-Visible_longB = -122.4092
+
+# bbox() returns a bounding box of the circle with center of the
+# current location and radius of 'nmiles' nautical miles.
+# Returns (longA, latA, longB, latB) Where A is the bottom left
+# corner and B is the upper right corner.
+def bbox(nmiles=15):
+    # Convert nautical miles to decimal degrees.
+    delta = nmiles * 1.0 / 60.0
+
+    geo = geocoder.ip('me')
+    lat = geo.latlng[0]
+    lng = geo.latlng[1]
+
+    bbox_latA = lat - delta
+    bbox_longA = lng - delta
+    bbox_latB = lat + delta
+    bbox_longB = lng + delta
+
+    return (bbox_longA, bbox_latA, bbox_longB, bbox_latB)
 
 
 # alert() prints a message and plays an alert tone.
@@ -87,39 +132,15 @@ def alert(mmsi='', ship='', details={}, url=''):
     pygame.mixer.music.play()
 
 
-keys = [
-    'mmsi',
-    'imo',
-    'name',
-    'type',
-    'sar',
-    '__id',
-    'vo',
-    'ff',
-    'direct_link',
-    'draught',
-    'year',
-    'gt',
-    'sizes',
-    'dw',
-]
-
-
 # persist() saves a ship sighting to the database.
-def persist(mmsi='', ship='', details={}, url='', now=time.time()):
-    INSERT = """
-    INSERT IGNORE INTO ships (
-       mmsi, imo, name, type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, dw
-    )
-    VALUES(
-       %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-    )
-    """
+def persist(mmsi='', details={}):
+    INSERT = "INSERT IGNORE INTO ships ( %s )" % ','.join(KEYS)
+    INSERT += " VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )"
 
     details['mmsi'] = mmsi
 
     row = []
-    for key in keys:
+    for key in KEYS:
         value = ''
         if key in details:
             value = details[key]
@@ -149,9 +170,9 @@ def lookup(mmsi):
     if row is not None:
         details = {}
         for k in range(len(row)):
-            details[keys[k]] = ''
+            details[KEYS[k]] = ''
             if row[k] is not None:
-                details[keys[k]] = row[k]
+                details[KEYS[k]] = row[k]
 
     cnx.commit()
     cursor.close()
@@ -188,6 +209,12 @@ def web_request(url='', use_json=False):
 # visible_from_apt() returns a bool indicating whether the ship is visible
 # from our apartment window.
 def visible_from_apt(lat1, long1):
+    # The bounding box for the area visible from our apartment.
+    Visible_latA  = 37.8052
+    Visible_latB  = 37.8613
+    Visible_longA = -122.48
+    Visible_longB = -122.4092
+
     # Note that A is the bottom left corner and B is the upper
     # right corner, so we need to work out C and D which are the
     # upper left and lower right corners.
@@ -217,7 +244,7 @@ def visible_from_apt(lat1, long1):
 
 # interesting() determines which ships in a given list are of interest.
 # If any are, it signals an alert.
-def interesting(ships, headingMin=0, headingMax=360, visible=False):
+def interesting(ships):
     uninteresting_ais = [
         '0',   # Unknown
         '6',   # Passenger
@@ -229,13 +256,15 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         '69',  # Passenger ship
     ]
 
-    uninteresting_mmsis = [
+    uninteresting_mmsi = [
         '367123640',  # Hawk
         '367389640',  # Oski
         '366990520',  # Del Norte
         '367566960',  # F/V Pioneer
     ]
 
+    unknown = 0
+    
     for ship in ships.split('\n'):
         fields = ship.split('\t')
 
@@ -252,49 +281,33 @@ def interesting(ships, headingMin=0, headingMax=360, visible=False):
         mmsi    = fields[5]
         name    = fields[6]
 
-        # Only look at ships that are moving.
+        url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
+        details = lookup(mmsi)
+        if details is None:
+            if unknown >= 20:
+                continue
+            print("Found unknown ship: %s %s" % (mmsi, name))
+            mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
+            details = web_request(url=mmsi_url, use_json=True)
+            persist(mmsi, details)
+            unknown += 1
+
+        # Only alert for ships that are moving.
         if speed < 4:
             continue
 
-        # Only look at ships headed the direction of interest.
-        if course < headingMin or course > headingMax:
-            continue
-
-        # Only look at ships visible from our apartment?
-        if visible and not visible_from_apt(lat1, long1):
-            continue
-
         # Skip 'uninteresting' ships.
-        if ais in uninteresting_ais:
-            continue
-        if mmsi in uninteresting_mmsis:
+        if ais in uninteresting_ais or mmsi in uninteresting_mmsi:
             continue
 
-        mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
-        details = lookup(mmsi)
-        if details is None:
-            details = web_request(url=mmsi_url, use_json=True)
-        url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
-        persist(mmsi, ship, details, url)
+        # Only alert for ships visible from our apartment.
+        if not visible_from_apt(lat1, long1):
+            continue
+
         alert(mmsi, ship, details, url)
 
 
 def main():
-    # (longA, latA, longB, latB)
-    # A is the bottom left corner and B is the upper right corner.
-    new_orleans = (-90.60, 29.54, -89.77, 30.08)
-    greater_bay_area = (-123.5 ,37.2, -121.5, 38.4)
-    # The bay visible from our apartment.
-    apt_visible = (Visible_longA, Visible_latA, Visible_longB, Visible_latB)
-    # The bay to the west of our apartment's visible area.
-    gate = (-122.56280995055705, 37.77840105911834, -122.47822461224163, 37.833635454273335)
-    # The bay to the east of our apartment's visible area.
-    outbound = (-122.45043142336208, 37.79005643280233, -122.36597402590112, 37.94129487900324)
-
-    visible = True
-    url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % apt_visible
-    url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
-
     parser = argparse.ArgumentParser(description='Ship Ahoy')
     parser.add_argument('--snapshot', help='exit after one scan pass', action='store_true')
     args = parser.parse_args()
@@ -302,10 +315,13 @@ def main():
     # Initialize the sound system.
     pygame.mixer.init()
 
+    url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % bbox(nmiles=1600)
+    url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
+
     while True:
         print("Scanning...")
         ships = web_request(url=url)
-        interesting(ships=ships, visible=visible)
+        interesting(ships=ships)
 
         if args.snapshot:
             break
