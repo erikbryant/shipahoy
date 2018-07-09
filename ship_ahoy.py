@@ -13,6 +13,14 @@ import mysql.connector
 #
 # AIS vessel types.
 # https://help.marinetraffic.com/hc/en-us/articles/205579997-What-is-the-significance-of-the-AIS-Shiptype-number-
+#
+# MMSI format.
+# https://www.navcen.uscg.gov/index.php?pageName=mtMmsi
+# MID registry.
+# https://www.itu.int/en/ITU-R/terrestrial/fmd/Pages/mid.aspx
+# Shine Micro DB.
+# http://www.mmsispace.com/livedisplay.php?mmsiresult=636091798
+# http://www.mmsispace.com/common/getdetails_v3.php?mmsi=369083000
 
 # TODO:
 # Put exception handling around url calls.
@@ -35,10 +43,11 @@ import mysql.connector
 # SQL statements
 """
  CREATE TABLE ships (
-    mmsi varchar(255),
-    imo varchar(255),
-    name varchar(255),
-    type varchar(255),
+    mmsi varchar(20),
+    imo varchar(20),
+    name varchar(128),
+    ais int,
+    type varchar(128),
     -- t unixtimestamp,
     sar boolean,
     -- dest varchar(255),
@@ -46,21 +55,44 @@ import mysql.connector
     -- ship_speed float,
     -- ship_course float,
     -- timestamp 'Jun 27, 2018 17:48 UTC',
-    __id varchar(255),
+    __id varchar(20),
     -- pn varchar(255),
     vo int,
     ff boolean,
-    direct_link varchar(255),
+    direct_link varchar(128),
     draught float,
-    year varchar(255),
-    gt varchar(255),
-    sizes varchar(255),
-    dw varchar(255)
+    year int,
+    gt int,
+    sizes varchar(50),
+    length int,
+    beam int,
+    dw int,
+    unknown int
  );
 
  CREATE UNIQUE INDEX mmsi ON ships ( mmsi );
 
  DELETE FROM ships;
+
+ ALTER TABLE ships MODIFY mmsi varchar(20);
+ ALTER TABLE ships MODIFY imo varchar(20);
+ ALTER TABLE ships MODIFY name varchar(128);
+ ALTER TABLE ships ADD ais int AFTER name;
+ ALTER TABLE ships MODIFY type varchar(128);
+ ALTER TABLE ships MODIFY __id varchar(20);
+ ALTER TABLE ships MODIFY direct_link varchar(128);
+ ALTER TABLE ships MODIFY sizes varchar(50);
+ ALTER TABLE ships ADD unknown int AFTER dw;
+ ALTER TABLE ships MODIFY year int;
+ ALTER TABLE ships MODIFY gt int;
+ ALTER TABLE ships MODIFY dw int;
+
+ TODO:
+  backfill ais
+  backfill length
+  backfill beam
+  backfill unknown
+
 """
 
 
@@ -72,6 +104,7 @@ KEYS = [
     'mmsi',
     'imo',
     'name',
+    'ais',
     'type',
     'sar',
     '__id',
@@ -82,7 +115,10 @@ KEYS = [
     'year',
     'gt',
     'sizes',
+    'length',
+    'beam',
     'dw',
+    'unknown',
 ]
 
 
@@ -133,11 +169,9 @@ def alert(mmsi='', ship='', details={}, url=''):
 
 
 # persist() saves a ship sighting to the database.
-def persist(mmsi='', details={}):
+def persist(details):
     INSERT = "INSERT IGNORE INTO ships ( %s )" % ','.join(KEYS)
-    INSERT += " VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )"
-
-    details['mmsi'] = mmsi
+    INSERT += " VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )"
 
     row = []
     for key in KEYS:
@@ -154,11 +188,21 @@ def persist(mmsi='', details={}):
     cnx.close()
 
 
+# update() updates a given mmsi's row in the database.
+def update(mmsi, col, value):
+    UPDATE = "UPDATE ships SET %s = '%s' WHERE mmsi = '%s'" % (col, value, mmsi)
+
+    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cursor = cnx.cursor()
+    cursor.execute(UPDATE)
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+
+
 # lookup() checks to see if a ship is already in the database.
 def lookup(mmsi):
-    SELECT = """
-    SELECT * FROM ships WHERE mmsi = '%s'
-    """ % mmsi
+    SELECT = "SELECT * FROM ships WHERE mmsi = '%s'" % mmsi
 
     details = None
 
@@ -246,14 +290,14 @@ def visible_from_apt(lat1, long1):
 # If any are, it signals an alert.
 def interesting(ships):
     uninteresting_ais = [
-        '0',   # Unknown
-        '6',   # Passenger
-        '31',  # Tug
-        '36',  # Sailing vessel
-        '37',  # Pleasure craft
-        '52',  # Tug
-        '60',  # Passenger ship
-        '69',  # Passenger ship
+        0,   # Unknown
+        6,   # Passenger
+        31,  # Tug
+        36,  # Sailing vessel
+        37,  # Pleasure craft
+        52,  # Tug
+        60,  # Passenger ship
+        69,  # Passenger ship
     ]
 
     uninteresting_mmsi = [
@@ -261,10 +305,11 @@ def interesting(ships):
         '367389640',  # Oski
         '366990520',  # Del Norte
         '367566960',  # F/V Pioneer
+        '367469070',  # Sunset Hornblower
     ]
 
-    unknown = 0
-    
+    throttle = 0
+
     for ship in ships.split('\n'):
         fields = ship.split('\t')
 
@@ -277,20 +322,49 @@ def interesting(ships):
         long1   = int(fields[1]) / 600000.0
         course  = int(fields[2]) / 10.0
         speed   = int(fields[3]) / 10.0  # SOG
-        ais     = fields[4]
+        ais     = int(fields[4])
         mmsi    = fields[5]
         name    = fields[6]
+        unknown = int(fields[7])
 
         url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
         details = lookup(mmsi)
         if details is None:
-            if unknown >= 20:
+            throttle += 1
+            if throttle >= 20:
                 continue
-            print("Found unknown ship: %s %s" % (mmsi, name))
+            print("Found new ship: %s %s" % (mmsi, name))
             mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
             details = web_request(url=mmsi_url, use_json=True)
-            persist(mmsi, details)
-            unknown += 1
+            length = 0
+            beam = 0
+            sizes = details['sizes'].split(' ')
+            if len(sizes) == 4 and sizes[1] == 'x' and sizes[3] == 'm':
+                length = int(sizes[0])
+                beam = int(sizes[2])
+            details['mmsi'] = mmsi
+            details['ais'] = ais
+            details['length'] = length
+            details['beam'] = beam
+            details['unknown'] = unknown
+            persist(details=details)
+        else:
+            if details['ais'] != ais:
+                print(mmsi, 'ais', ais, details['ais'])
+                update(mmsi=mmsi, col='ais', value=ais)
+            if details['unknown'] != unknown:
+                print(mmsi, 'unknown', unknown, details['unknown'])
+                update(mmsi=mmsi, col='unknown', value=unknown)
+            sizes = details['sizes'].split(' ')
+            if len(sizes) == 4 and sizes[1] == 'x' and sizes[3] == 'm':
+                length = int(sizes[0])
+                beam = int(sizes[2])
+                if details['length'] != length:
+                    print(mmsi, 'length', length, details['length'])
+                    update(mmsi=mmsi, col='length', value=length)
+                if details['beam'] != beam:
+                    print(mmsi, 'beam', beam, details['beam'])
+                    update(mmsi=mmsi, col='beam', value=beam)
 
         # Only alert for ships that are moving.
         if speed < 4:
@@ -315,7 +389,9 @@ def main():
     # Initialize the sound system.
     pygame.mixer.init()
 
-    url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % bbox(nmiles=1600)
+    box = (-193, -16, -36, 71)  # North America
+    box = bbox(nmiles=150)
+    url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % box
     url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
     while True:
