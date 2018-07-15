@@ -22,6 +22,9 @@ import mysql.connector
 # http://www.mmsispace.com/livedisplay.php?mmsiresult=636091798
 # http://www.mmsispace.com/common/getdetails_v3.php?mmsi=369083000
 
+# Lat Lon calc
+# https://www.movable-type.co.uk/scripts/latlong.html
+
 # TODO:
 # Put exception handling around url calls.
 #  socket.gaierror: [Errno -2] Name or service not known
@@ -38,7 +41,6 @@ import mysql.connector
 #      lat = geo.latlng[0]
 #  TypeError: 'NoneType' object is not subscriptable
 #
-# Write the detected ships to a database so we can keep stats on them.
 
 # SQL statements
 """
@@ -56,7 +58,7 @@ import mysql.connector
     -- ship_course float,
     -- timestamp 'Jun 27, 2018 17:48 UTC',
     __id varchar(20),
-    -- pn varchar(255),
+    -- pn varchar(255),  -- '0-227616590-808bd5b15abc2089364f4d3ccf1e13d6'
     vo int,
     ff boolean,
     direct_link varchar(128),
@@ -75,31 +77,27 @@ import mysql.connector
  DELETE FROM ships;
 
  ALTER TABLE ships MODIFY mmsi varchar(20);
- ALTER TABLE ships MODIFY imo varchar(20);
- ALTER TABLE ships MODIFY name varchar(128);
  ALTER TABLE ships ADD ais int AFTER name;
- ALTER TABLE ships MODIFY type varchar(128);
- ALTER TABLE ships MODIFY __id varchar(20);
- ALTER TABLE ships MODIFY direct_link varchar(128);
- ALTER TABLE ships MODIFY sizes varchar(50);
- ALTER TABLE ships ADD unknown int AFTER dw;
- ALTER TABLE ships MODIFY year int;
- ALTER TABLE ships MODIFY gt int;
- ALTER TABLE ships MODIFY dw int;
 
- TODO:
-  backfill ais
-  backfill length
-  backfill beam
-  backfill unknown
+ CREATE TABLE sightings (
+    mmsi varchar(20),
+    dest varchar(128),
+    ship_course float,
+    timestamp datetime,
+    lat float,
+    lon float,
+    my_lat float,
+    my_lon float,
+ );
 
 """
 
 
 ShipsSeen = {}
-ExpireSecs = 90
+ExpireSecs = 100
+
 # Invariants about a ship. As far as I know, these do not change
-# over the life of the ship (as opposed to course, speed, etc.).
+# over the life of the ship (as opposed to course or speed).
 KEYS = [
     'mmsi',
     'imo',
@@ -156,16 +154,19 @@ def alert(mmsi='', ship='', details={}, url=''):
     print("Ship Ahoy!   %s\n%s\n%s\n" % (ship, details, url))
 
     # Play an alert tone.
+    sound_file = "ship_horn.mp3"
     if 'vehicle' in details['type'].lower():
         # Vehicle carriers get their own sound. :-)
-        pygame.mixer.music.load("meep.wav")
-    else:
-        # Play the generic ship horn, unless something
-        # is already playing.
-        if pygame.mixer.music.get_busy():
-            return
-        pygame.mixer.music.load("ship_horn.mp3")
+        sound_file = "meep.wav"
+
+    # pygame has a 100% CPU usage bug, so only run it while the sound
+    # is actually being played. https://github.com/pygame/pygame/issues/331
+    pygame.mixer.init()
+    pygame.mixer.music.load(sound_file)
     pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        time.sleep(1)
+    pygame.mixer.quit()
 
 
 # persist() saves a ship sighting to the database.
@@ -225,7 +226,28 @@ def lookup(mmsi):
     return details
 
 
-# web_request() makes a web request.
+# lookup() checks to see if a ship is already in the database.
+def sizes_by_mmsi():
+    SELECT = "select mmsi from ships where length is NULL and sizes != 'N/A'"
+
+    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cursor = cnx.cursor()
+    cursor.execute(SELECT)
+
+    mmsi = []
+    row = cursor.fetchone()
+    while row is not None:
+        mmsi.append(row[0])
+        row = cursor.fetchone()
+
+    cnx.commit()
+    cursor.close()
+    cnx.close()
+
+    return mmsi
+
+
+# web_request() makes a web request for a given URL.
 def web_request(url='', use_json=False):
     headers = {}
     headers['Host'] = 'www.vesselfinder.com'
@@ -306,6 +328,7 @@ def interesting(ships):
         '366990520',  # Del Norte
         '367566960',  # F/V Pioneer
         '367469070',  # Sunset Hornblower
+        '338234637',  # HEWESCRAFT 220 OP
     ]
 
     throttle = 0
@@ -331,17 +354,20 @@ def interesting(ships):
         details = lookup(mmsi)
         if details is None:
             throttle += 1
-            if throttle >= 20:
+            if throttle >= 50000:
                 continue
             print("Found new ship: %s %s" % (mmsi, name))
             mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
             details = web_request(url=mmsi_url, use_json=True)
             length = 0
             beam = 0
-            sizes = details['sizes'].split(' ')
-            if len(sizes) == 4 and sizes[1] == 'x' and sizes[3] == 'm':
-                length = int(sizes[0])
-                beam = int(sizes[2])
+            try:
+                sizes = details['sizes'].split(' ')
+                if len(sizes) == 4 and sizes[1] == 'x' and sizes[3] == 'm':
+                    length = int(sizes[0])
+                    beam = int(sizes[2])
+            except:
+                print("ERROR:", details['sizes'])
             details['mmsi'] = mmsi
             details['ais'] = ais
             details['length'] = length
@@ -350,21 +376,9 @@ def interesting(ships):
             persist(details=details)
         else:
             if details['ais'] != ais:
-                print(mmsi, 'ais', ais, details['ais'])
                 update(mmsi=mmsi, col='ais', value=ais)
             if details['unknown'] != unknown:
-                print(mmsi, 'unknown', unknown, details['unknown'])
                 update(mmsi=mmsi, col='unknown', value=unknown)
-            sizes = details['sizes'].split(' ')
-            if len(sizes) == 4 and sizes[1] == 'x' and sizes[3] == 'm':
-                length = int(sizes[0])
-                beam = int(sizes[2])
-                if details['length'] != length:
-                    print(mmsi, 'length', length, details['length'])
-                    update(mmsi=mmsi, col='length', value=length)
-                if details['beam'] != beam:
-                    print(mmsi, 'beam', beam, details['beam'])
-                    update(mmsi=mmsi, col='beam', value=beam)
 
         # Only alert for ships that are moving.
         if speed < 4:
@@ -386,11 +400,11 @@ def main():
     parser.add_argument('--snapshot', help='exit after one scan pass', action='store_true')
     args = parser.parse_args()
 
-    # Initialize the sound system.
-    pygame.mixer.init()
-
-    box = (-193, -16, -36, 71)  # North America
+    # (longA, latA, longB, latB) Where A is the bottom left
+    # corner and B is the upper right corner.
+    box = (0, -16, 160, 62)  # Europe, SE Asia
     box = bbox(nmiles=150)
+    box = (-193, -16, -36, 71)  # North America
     url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % box
     url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
