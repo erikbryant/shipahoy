@@ -156,7 +156,7 @@ import pygame
 
 
 ShipsSeen = {}
-ExpireSecs = 100
+ExpireSecs = 30
 
 # Invariants about a ship. As far as I know, these do not change
 # over the life of the ship (as opposed to course or speed).
@@ -365,7 +365,7 @@ def web_request(url='', use_json=False):
             content = json.load(response)
         else:
             content = response.read().decode('utf-8')
-    except urllib.error.URLError as err:
+    except Exception as err:  # Let the caller retry if they care.
         print(err)
 
     return content
@@ -458,7 +458,8 @@ def interesting(ships):
             print("Found new ship: %s %s" % (mmsi, name))
             mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
             details = web_request(url=mmsi_url, use_json=True)
-            if details == '':
+            if not type(details) == type({}):
+                print("Skipping... /", details, "/")
                 continue
             length = 0
             beam = 0
@@ -513,12 +514,12 @@ def main():
     # boxes.append((-193, -16, -36, 71))  # North America
     # boxes.append((0, -16, 160, 62))  # Europe, SE Asia
 
-    step = 2
-    for i in range(0, 180, step):
-        boxes.append(bbox(nmiles=100, latlon=my_location()))
-        boxes.append((i, -80, i+step, 80))
-        boxes.append(bbox(nmiles=100, latlon=my_location()))
-        boxes.append((-i, -80, -(i+step), 80))
+    my_box = bbox(nmiles=100, latlon=my_location())
+    step = 10
+    for lat in range(-80, 80, step):
+        boxes.append(my_box)
+        for lon in range(-180, 180, step):
+            boxes.append((lon, lat, lon+step, lat+step))
 
     while True:
         for box in boxes:
