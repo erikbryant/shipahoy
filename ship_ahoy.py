@@ -149,8 +149,8 @@ import pygame
  );
 
  # Backup / Restore
- mysqldump -u root -p db_name t1 > dump.sql
- mysql -u root-p db_name < dump.sql
+ mysqldump -u ships -p db_name t1 > dump.sql
+ mysql -u ships -p db_name < dump.sql
 
 """
 
@@ -250,7 +250,7 @@ def persist_ship(details):
             value = details[key]
         row.append(value)
 
-    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cnx = mysql.connector.connect(user='ships', password='shipspassword', database='ship_ahoy')
     cursor = cnx.cursor()
     cursor.execute(INSERT, row)
     cnx.commit()
@@ -280,7 +280,7 @@ def persist_sighting(mmsi, ship_course, lat, lon):
             value = details[key]
         row.append(value)
 
-    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cnx = mysql.connector.connect(user='ships', password='shipspassword', database='ship_ahoy')
     cursor = cnx.cursor()
     cursor.execute(INSERT, row)
     cnx.commit()
@@ -292,7 +292,7 @@ def persist_sighting(mmsi, ship_course, lat, lon):
 def update(mmsi, col, value):
     UPDATE = "UPDATE ships SET %s = '%s' WHERE mmsi = '%s'" % (col, value, mmsi)
 
-    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cnx = mysql.connector.connect(user='ships', password='shipspassword', database='ship_ahoy')
     cursor = cnx.cursor()
     cursor.execute(UPDATE)
     cnx.commit()
@@ -306,7 +306,7 @@ def lookup(mmsi):
 
     details = None
 
-    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cnx = mysql.connector.connect(user='ships', password='shipspassword', database='ship_ahoy')
     cursor = cnx.cursor()
     cursor.execute(SELECT)
 
@@ -329,7 +329,7 @@ def lookup(mmsi):
 def sizes_by_mmsi():
     SELECT = "select mmsi from ships where length is NULL and sizes != 'N/A'"
 
-    cnx = mysql.connector.connect(user='root', password='password', database='ship_ahoy')
+    cnx = mysql.connector.connect(user='ships', password='shipspassword', database='ship_ahoy')
     cursor = cnx.cursor()
     cursor.execute(SELECT)
 
