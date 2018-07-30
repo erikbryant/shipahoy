@@ -125,8 +125,8 @@ import pygame
     year int,
     gt int,
     sizes varchar(50),
-    length int,
-    beam int,
+    length int not null,
+    beam int not null,
     dw int,
     unknown int
  );
@@ -137,6 +137,9 @@ import pygame
 
  ALTER TABLE ships MODIFY mmsi varchar(20);
  ALTER TABLE ships ADD ais int AFTER name;
+
+ UPDATE ships SET length = 0 WHERE length IS NULL;
+ ALTER TABLE ships MODIFY length INT NOT NULL;
 
  CREATE TABLE sightings (
     mmsi varchar(20),
@@ -156,7 +159,6 @@ import pygame
 
 
 ShipsSeen = {}
-ExpireSecs = 30
 
 # Invariants about a ship. As far as I know, these do not change
 # over the life of the ship (as opposed to course or speed).
@@ -428,9 +430,9 @@ def interesting(ships):
         '367566960',  # F/V Pioneer
         '367469070',  # Sunset Hornblower
         '338234637',  # HEWESCRAFT 220 OP
+        '366918840',  # Happy Days
+        '338107922',  # Misty Dawn
     ]
-
-    throttle = 0
 
     for ship in ships.split('\n'):
         fields = ship.split('\t')
@@ -449,17 +451,12 @@ def interesting(ships):
         name = fields[6]
         unknown = int(fields[7])
 
-        url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
         details = lookup(mmsi)
         if details is None:
-            throttle += 1
-            if throttle >= 50000:
-                continue
             print("Found new ship: %s %s" % (mmsi, name))
             mmsi_url = "https://www.vesselfinder.com/clickinfo?mmsi=%s&rn=64229.85898456942&_=1524694015667" % mmsi
             details = web_request(url=mmsi_url, use_json=True)
             if not type(details) == type({}):
-                print("Skipping... /", details, "/")
                 continue
             length = 0
             beam = 0
@@ -493,13 +490,14 @@ def interesting(ships):
 
         now = time.time()
         last_seen = ShipsSeen.get(mmsi, 0)
-        mute = now - last_seen <= 5*ExpireSecs
+        mute = now - last_seen <= 60  # Seconds
         ShipsSeen[mmsi] = now
         if mute:
             continue
 
         # We have passed all the tests! Save and alert.
         persist_sighting(mmsi, ship_course, lat, lon)
+        url = "https://www.vesselfinder.com/?mmsi=%s&zoom=13" % mmsi
         alert(mmsi, ship, details, url)
 
 
@@ -514,11 +512,11 @@ def main():
     # boxes.append((-193, -16, -36, 71))  # North America
     # boxes.append((0, -16, 160, 62))  # Europe, SE Asia
 
-    my_box = bbox(nmiles=100, latlon=my_location())
-    step = 10
-    for lat in range(-80, 80, step):
+    my_box = bbox(nmiles=50, latlon=my_location())
+    step = -10
+    for lat in range(60, -60, step):
         boxes.append(my_box)
-        for lon in range(-180, 180, step):
+        for lon in range(180, -180, step):
             boxes.append((lon, lat, lon+step, lat+step))
 
     while True:
@@ -535,7 +533,7 @@ def main():
                 return
 
             # Do not spam their web service.
-            time.sleep(ExpireSecs)
+            time.sleep(10)
 
 
 main()
