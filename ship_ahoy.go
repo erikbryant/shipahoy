@@ -1,14 +1,26 @@
 package main
 
 // $ go get github.com/go-sql-driver/mysql
+//
+// $ apt install libasound2-dev
+// $ go get github.com/faiface/beep
+// $ go get github.com/faiface/beep/mp3
+// $ go get github.com/faiface/beep/wav
+// $ go get github.com/faiface/beep/speaker
+
 import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/faiface/beep"
+	"github.com/faiface/beep/mp3"
+	"github.com/faiface/beep/speaker"
+	"github.com/faiface/beep/wav"
 	_ "github.com/go-sql-driver/mysql"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -33,12 +45,13 @@ type Ship struct {
 	length      int
 	beam        int
 	dw          int
-	unknown     int
+	unknown     int // Unused.
 
 	// Not stored in db ...
-	lat   float64
-	lon   float64
-	speed float64
+	lat         float64
+	lon         float64
+	ship_course float64
+	speed       float64
 }
 
 var (
@@ -66,13 +79,22 @@ var (
 	}
 )
 
+func db_save_ship(details Ship) {
+	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, length, beam, dw ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
+
+	_, err := db.Exec(sqlString, details.mmsi, details.imo, details.name, details.ais, details.Type, details.sar, details.__id, details.vo, details.ff, details.direct_link, details.draught, details.year, details.gt, details.sizes, details.length, details.beam, details.dw)
+	if err != nil {
+		fmt.Println("db_save_ship Exec:", err)
+	}
+}
+
 func db_lookup_ship(mmsi string) (Ship, bool) {
 	var details Ship
 
 	sqlString := "select * from ships where mmsi = " + mmsi
 
 	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&details.mmsi, &details.imo, &details.name, &details.ais, &details.Type, &details.sar, &details.__id, &details.vo, &details.ff, &details.direct_link, &details.draught, &details.year, &details.gt, &details.sizes, &details.length, &details.beam, &details.dw, &details.unknown)
+	err := rows.Scan(&details.mmsi, &details.imo, &details.name, &details.ais, &details.Type, &details.sar, &details.__id, &details.vo, &details.ff, &details.direct_link, &details.draught, &details.year, &details.gt, &details.sizes, &details.length, &details.beam, &details.dw)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			fmt.Println("lookup_ship Scan:", err)
@@ -83,26 +105,17 @@ func db_lookup_ship(mmsi string) (Ship, bool) {
 	return details, true
 }
 
-func db_count_rows(table string) (int, bool) {
-	rows, err := db.Query("select count(*) from " + table)
+func db_count_rows(table string) (int64, bool) {
+	var count int64
+
+	sqlString := "select count(*) from " + table
+
+	row := db.QueryRow(sqlString)
+	err := row.Scan(&count)
 	if err != nil {
-		fmt.Println("Query:", err)
-		return 0, false
-	}
-	defer rows.Close()
-	var (
-		count int
-	)
-	for rows.Next() {
-		err := rows.Scan(&count)
-		if err != nil {
+		if err != sql.ErrNoRows {
 			fmt.Println("count_rows Scan:", err)
-			return 0, false
 		}
-	}
-	err = rows.Err()
-	if err != nil {
-		fmt.Println("Err:", err)
 		return 0, false
 	}
 
@@ -153,15 +166,110 @@ func web_request_map(url string) map[string]interface{} {
 	return f
 }
 
-// alert() prints a message and plays an alert tone.
-func alert(details Ship, url string) {
-	fmt.Println("Ship Ahoy!     ", url)
-	fmt.Println(details)
+func play(file string, wavFile bool) {
+	// Open first sample File
+	f, err := os.Open(file)
 
-	// TODO play tone.
+	// Check for errors when opening the file
+	if err != nil {
+		fmt.Println("Could not open audio file", file)
+		return
+	}
+
+	// Decode the .mp3 File, if you have a .wav file, use wav.Decode(f)
+	var (
+		s      beep.StreamSeekCloser
+		format beep.Format
+	)
+	if wavFile {
+		s, format, _ = wav.Decode(f)
+	} else {
+		s, format, _ = mp3.Decode(f)
+	}
+
+	// Init the Speaker with the SampleRate of the format and a buffer size.
+	speaker.Init(format.SampleRate, format.SampleRate.N(3*time.Second))
+
+	// Channel, which will signal the end of the playback.
+	playing := make(chan struct{})
+
+	// Now we Play our Streamer on the Speaker
+	speaker.Play(beep.Seq(s, beep.Callback(func() {
+		// Callback after the stream Ends
+		close(playing)
+	})))
+	<-playing
 }
 
-func ship_details(mmsi string, ais int) (Ship, bool) {
+// alert() prints a message and plays an alert tone.
+func alert(details Ship, url string) {
+	fmt.Println("\nShip Ahoy!     ", url, "     ", details, "\n")
+
+	// TODO play tone.
+	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
+		go play("meep.wav", true)
+	} else {
+		go play("ship_horn.mp3", false)
+	}
+}
+
+func to_int(val interface{}) (result int) {
+	switch val.(type) {
+	case int:
+		result = val.(int)
+	case int64:
+		result = int(val.(int64))
+	case string:
+		tmp, _ := strconv.ParseInt(val.(string), 10, 32)
+		result = int(tmp)
+	case float64:
+		result = int(val.(float64))
+	default:
+		fmt.Println("Unknown type", val)
+		result = val.(int) // Force a panic.
+	}
+
+	return result
+}
+
+func to_string(val interface{}) (result string) {
+	switch val.(type) {
+	case int:
+		result = strconv.FormatInt(int64(val.(int)), 10)
+	case int64:
+		result = strconv.FormatInt(val.(int64), 10)
+	case string:
+		result = val.(string)
+	case float64:
+		result = strconv.FormatFloat(val.(float64), 'f', 8, 64)
+	default:
+		fmt.Println("Unknown type", val)
+		result = val.(string) // Force a panic.
+	}
+
+	return result
+}
+
+// TODO: Write this!
+func to_float64(val interface{}) (result float64) {
+	switch val.(type) {
+	case int:
+		result = float64(val.(int))
+	case int64:
+		result = float64(val.(int64))
+	case string:
+		result, _ = strconv.ParseFloat(val.(string), 64)
+	case float64:
+		result = val.(float64)
+	default:
+		fmt.Println("Unknown type", val)
+		result = val.(float64) // Force a panic.
+	}
+
+	return result
+}
+
+func get_ship_details(mmsi string, ais int) (Ship, bool) {
 	var (
 		length int64
 		beam   int64
@@ -182,29 +290,22 @@ func ship_details(mmsi string, ais int) (Ship, bool) {
 		return details, false
 	}
 
-	// Copy response into details.
-	details.imo = response["imo"].(string)
-	details.name = response["name"].(string)
-	details.Type = response["type"].(string)
-	details.sar = response["sar"].(bool)
-	details.__id = response["__id"].(string)
-	details.vo = int(response["vo"].(float64))
-	details.ff = response["ff"].(bool)
-	details.direct_link = response["direct_link"].(string)
-	details.draught = response["draught"].(float64)
-	year, _ := strconv.ParseInt(response["year"].(string), 10, 32)
-	details.year = int(year)
-	gt, _ := strconv.ParseInt(response["gt"].(string), 10, 32)
-	details.gt = int(gt)
-	details.sizes = response["sizes"].(string)
-	dw, _ := strconv.ParseInt(response["dw"].(string), 10, 32)
-	details.dw = int(dw)
-	// details.unknown = response["unknown"].(int)
-
-	// Add the extra fields to details.
 	details.mmsi = mmsi
+	details.imo = to_string(response["imo"])
+	details.name = to_string(response["name"])
 	details.ais = ais
-	fmt.Println("Found new ship:", details.mmsi, details.name)
+	details.Type = to_string(response["type"])
+	details.sar = response["sar"].(bool)
+	details.__id = to_string(response["__id"])
+	details.vo = to_int(response["vo"])
+	details.ff = response["ff"].(bool)
+	details.direct_link = to_string(response["direct_link"])
+	details.draught = to_float64(response["draught"])
+	details.year = to_int(response["year"])
+	details.gt = to_int(response["gt"])
+	details.sizes = to_string(response["sizes"])
+	details.dw = to_int(response["dw"])
+
 	sizes := strings.Split(details.sizes, " ")
 	if len(sizes) == 4 && sizes[1] == "x" && sizes[3] == "m" {
 		length, _ = strconv.ParseInt(sizes[0], 10, 64)
@@ -212,18 +313,15 @@ func ship_details(mmsi string, ais int) (Ship, bool) {
 	}
 	details.length = int(length)
 	details.beam = int(beam)
-	persist_ship(details)
+
+	fmt.Println("Found new ship:", details.mmsi, details.name)
+	db_save_ship(details)
 
 	return details, true
 }
 
 // TODO
 func update(_ string, _ string, _ int) {
-	return
-}
-
-// TODO
-func persist_ship(_ Ship) {
 	return
 }
 
@@ -308,13 +406,14 @@ func ships_in_region(latA, lonA, latB, lonB float64, c chan Ship) {
 		// name := fields[6]
 		// unknown, _ := strconv.ParseInt(fields[7], 10, 64)
 
-		details, ok := ship_details(mmsi, int(ais))
+		details, ok := get_ship_details(mmsi, int(ais))
 		if !ok {
 			continue
 		}
 
 		details.lat = lat
 		details.lon = lon
+		details.ship_course = ship_course
 		details.speed = speed
 
 		// Push 'details' to channel.
@@ -388,15 +487,30 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 }
 
 func scan_nearby() {
-	lat, lon := my_geo()
-	latA, lonA, latB, lonB := box(lat, lon, 50)
-
+	// TODO: If the bounding region of 'nearby' overlaps the bounding
+	// region of scan_apt_visible then do not scan 'nearby',
 	for {
-		fmt.Println("Scanning nearby ...", latA, lonA, latB, lonB)
-		// TODO: call something like look_at_ships, but without
-		// the check for sightings.
-		// look_at_ships(latA, lonA, latB, lonB)
-		time.Sleep(10 * time.Second)
+		lat, lon := my_geo()
+		latA, lonA, latB, lonB := box(lat, lon, 30)
+
+		// Open channel.
+		c := make(chan Ship, 10)
+
+		go ships_in_region(latA, lonA, latB, lonB, c)
+
+		// Read from channel.
+		count := 0
+		for {
+			// Count the ships.
+			_, ok := <-c
+			if !ok {
+				break
+			}
+			count++
+		}
+		// fmt.Println("Scanning nearby:", lat, lon, "Count:", count)
+
+		time.Sleep(5 * 60 * time.Second)
 	}
 }
 
@@ -405,9 +519,8 @@ func scan_apt_visible() {
 	latA, lonA, latB, lonB := box(lat, lon, 10)
 
 	for {
-		fmt.Println("Scanning apt visible ...", latA, lonA, latB, lonB)
 		look_at_ships(latA, lonA, latB, lonB)
-		time.Sleep(15 * time.Second)
+		time.Sleep(2 * 60 * time.Second)
 	}
 }
 
@@ -417,11 +530,27 @@ func scan_planet() {
 			for lonA := 180.0; lonA >= -180.0; lonA -= 10.0 {
 				latB := latA + 10.0
 				lonB := lonA + 10.0
-				fmt.Println("Scanning planet ...", latA, lonA, latB, lonB)
-				look_at_ships(latA, lonA, latB, lonB)
-				time.Sleep(5 * time.Second)
+
+				// Open channel.
+				c := make(chan Ship, 10)
+
+				go ships_in_region(latA, lonA, latB, lonB, c)
+
+				// Read from channel.
+				count := 0
+				for {
+					// Count the ships.
+					_, ok := <-c
+					if !ok {
+						break
+					}
+					count++
+				}
+				// fmt.Println("Scanning planet:", latA, lonA, latB, lonB, "Count:", count)
+
+				time.Sleep(60 * time.Second)
 			}
-			time.Sleep(30 * time.Second)
+			time.Sleep(2 * 60 * time.Second)
 		}
 	}
 }
@@ -430,12 +559,15 @@ func db_stats() {
 	tables := []string{"ships", "sightings"}
 
 	for {
+		msg := "## "
 		for _, t := range tables {
 			count, ok := db_count_rows(t)
 			if ok {
-				fmt.Printf("%s: %d\n", t, count)
+				msg += t + ": " + strconv.FormatInt(count, 10) + " "
 			}
 		}
+		msg += "##"
+		fmt.Println(msg)
 		time.Sleep(5 * 60 * time.Second)
 	}
 }
@@ -451,9 +583,9 @@ func main() {
 	}
 	defer db.Close()
 
-	// go scan_nearby()
+	go scan_nearby()
 	go scan_apt_visible()
-	// go scan_planet()
+	go scan_planet()
 	go db_stats()
 
 	for {
