@@ -54,6 +54,16 @@ type Ship struct {
 	speed       float64
 }
 
+type Sighting struct {
+	mmsi        string
+	ship_course float64
+	timestamp   int64
+	lat         float64
+	lon         float64
+	my_lat      float64
+	my_lon      float64
+}
+
 var (
 	db                *sql.DB
 	uninteresting_ais = map[int]bool{
@@ -91,7 +101,7 @@ func db_save_ship(details Ship) {
 func db_lookup_ship(mmsi string) (Ship, bool) {
 	var details Ship
 
-	sqlString := "select * from ships where mmsi = " + mmsi
+	sqlString := "SELECT * FROM ships WHERE mmsi = " + mmsi
 
 	rows := db.QueryRow(sqlString)
 	err := rows.Scan(&details.mmsi, &details.imo, &details.name, &details.ais, &details.Type, &details.sar, &details.__id, &details.vo, &details.ff, &details.direct_link, &details.draught, &details.year, &details.gt, &details.sizes, &details.length, &details.beam, &details.dw)
@@ -105,10 +115,38 @@ func db_lookup_ship(mmsi string) (Ship, bool) {
 	return details, true
 }
 
+func db_save_sighting(details Ship) {
+	my_lat, my_lon := my_geo()
+
+	sqlString := "INSERT IGNORE INTO sightings ( mmsi, ship_course, timestamp, lat, lon, my_lat, my_lon ) VALUES ( ?, ?, ?, ?, ?, ?, ?)"
+
+	_, err := db.Exec(sqlString, details.mmsi, details.ship_course, time.Now().Unix(), details.lat, details.lon, my_lat, my_lon)
+	if err != nil {
+		fmt.Println("db_save_sighting Exec:", err)
+	}
+}
+
+func db_lookup_sighting(details Ship) (Sighting, bool) {
+	var sighting Sighting
+
+	sqlString := "SELECT * FROM sightings WHERE mmsi = " + details.mmsi + " ORDER BY timestamp DESC LIMIT 1"
+
+	rows := db.QueryRow(sqlString)
+	err := rows.Scan(&sighting.mmsi, &sighting.ship_course, &sighting.timestamp, &sighting.lat, &sighting.lon, &sighting.my_lat, &sighting.my_lon)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			fmt.Println("lookup_sighting Scan:", err)
+		}
+		return sighting, false
+	}
+
+	return sighting, true
+}
+
 func db_count_rows(table string) (int64, bool) {
 	var count int64
 
-	sqlString := "select count(*) from " + table
+	sqlString := "SELECT COUNT(*) FROM " + table
 
 	row := db.QueryRow(sqlString)
 	err := row.Scan(&count)
@@ -250,7 +288,6 @@ func to_string(val interface{}) (result string) {
 	return result
 }
 
-// TODO: Write this!
 func to_float64(val interface{}) (result float64) {
 	switch val.(type) {
 	case int:
@@ -277,10 +314,6 @@ func get_ship_details(mmsi string, ais int) (Ship, bool) {
 
 	details, ok := db_lookup_ship(mmsi)
 	if ok {
-		if details.ais != ais {
-			update(mmsi, "ais", ais)
-			details.ais = ais
-		}
 		return details, true
 	}
 
@@ -318,16 +351,6 @@ func get_ship_details(mmsi string, ais int) (Ship, bool) {
 	db_save_ship(details)
 
 	return details, true
-}
-
-// TODO
-func update(_ string, _ string, _ int) {
-	return
-}
-
-// TODO
-func persist_sighting(Ship) {
-	return
 }
 
 // visible_from_apt() returns a bool indicating whether the ship is visible
@@ -451,10 +474,19 @@ func look_at_ships(latA, lonA, latB, lonB float64) {
 		}
 
 		// If we have recently seen this ship, skip it.
-		// TODO
+		sighting, ok := db_lookup_sighting(details)
+		if ok {
+			now := time.Now().Unix()
+			elapsed := now - sighting.timestamp
+			if elapsed < 20*60 {
+				// The ship is still crossing the visible area.
+				// No need to alert a second time.
+				continue
+			}
+		}
 
 		// We have passed all the tests! Save and alert.
-		persist_sighting(details)
+		db_save_sighting(details)
 		url := "https://www.vesselfinder.com/?mmsi=" + details.mmsi + "&zoom=13"
 		alert(details, url)
 	}
@@ -508,7 +540,6 @@ func scan_nearby() {
 			}
 			count++
 		}
-		// fmt.Println("Scanning nearby:", lat, lon, "Count:", count)
 
 		time.Sleep(5 * 60 * time.Second)
 	}
