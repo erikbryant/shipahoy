@@ -141,6 +141,8 @@ import pygame
  UPDATE ships SET length = 0 WHERE length IS NULL;
  ALTER TABLE ships MODIFY length INT NOT NULL;
 
+ ALTER TABLE ships DROP COLUMN unknown;
+
  CREATE TABLE sightings (
     mmsi varchar(20),
     ship_course float,
@@ -180,7 +182,6 @@ KEYS = [
     'length',
     'beam',
     'dw',
-    'unknown',
 ]
 KEYS_SIGHTING = [
     'mmsi',
@@ -243,7 +244,7 @@ def alert(mmsi='', ship='', details={}, url=''):
 # persist_ship() saves a ship's data to the database.
 def persist_ship(details):
     INSERT = "INSERT IGNORE INTO ships ( %s )" % ','.join(KEYS)
-    INSERT += " VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )"
+    INSERT += " VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )"
 
     row = []
     for key in KEYS:
@@ -449,7 +450,7 @@ def interesting(ships):
         ais = int(fields[4])
         mmsi = fields[5]
         name = fields[6]
-        unknown = int(fields[7])
+        # unknown = int(fields[7])
 
         details = lookup(mmsi)
         if details is None:
@@ -468,13 +469,11 @@ def interesting(ships):
             details['ais'] = ais
             details['length'] = length
             details['beam'] = beam
-            details['unknown'] = unknown
+            # details['unknown'] = unknown
             persist_ship(details=details)
         else:
             if details['ais'] != ais:
                 update(mmsi=mmsi, col='ais', value=ais)
-            if details['unknown'] != unknown:
-                update(mmsi=mmsi, col='unknown', value=unknown)
 
         # Only alert for ships that are moving.
         if speed < 4:
@@ -506,34 +505,26 @@ def main():
     parser.add_argument('--snapshot', help='exit after one scan pass', action='store_true')
     args = parser.parse_args()
 
-    boxes = []
     # (longA, latA, longB, latB) Where A is the bottom left
     # corner and B is the upper right corner.
     # boxes.append((-193, -16, -36, 71))  # North America
     # boxes.append((0, -16, 160, 62))  # Europe, SE Asia
 
-    my_box = bbox(nmiles=50, latlon=my_location())
-    step = -10
-    for lat in range(60, -60, step):
-        boxes.append(my_box)
-        for lon in range(180, -180, step):
-            boxes.append((lon, lat, lon+step, lat+step))
-
     while True:
-        for box in boxes:
-            print("Scanning", box)
+        box = bbox(nmiles=50, latlon=my_location())
+        print("Scanning", box)
 
-            url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % box
-            url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
+        url = "https://www.vesselfinder.com/vesselsonmap?bbox=%f%%2C%f%%2C%f%%2C%f" % box
+        url += "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
-            ships = web_request(url=url)
-            interesting(ships=ships)
+        ships = web_request(url=url)
+        interesting(ships=ships)
 
-            if args.snapshot:
-                return
+        if args.snapshot:
+            return
 
-            # Do not spam their web service.
-            time.sleep(10)
+        # Do not spam their web service.
+        time.sleep(30)
 
 
 main()
