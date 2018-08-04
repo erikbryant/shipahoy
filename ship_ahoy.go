@@ -86,6 +86,8 @@ var (
 		"338234637": true, // HEWESCRAFT 220 OP
 		"366918840": true, // Happy Days
 		"338107922": true, // Misty Dawn
+		"367703860": true, // Vera Cruz
+		"338236492": true, // Round Midnight
 	}
 )
 
@@ -599,7 +601,7 @@ func db_stats() {
 		}
 		msg += "##"
 		fmt.Println(msg)
-		time.Sleep(5 * 60 * time.Second)
+		time.Sleep(10 * 60 * time.Second)
 	}
 }
 
@@ -614,7 +616,7 @@ func main() {
 	}
 	defer db.Close()
 
-	go scan_nearby()
+	// go scan_nearby()
 	go scan_apt_visible()
 	go scan_planet()
 	go db_stats()
