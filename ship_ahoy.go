@@ -11,6 +11,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
@@ -19,8 +20,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -65,6 +68,8 @@ type Sighting struct {
 }
 
 var (
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 	db                *sql.DB
 	uninteresting_ais = map[int]bool{
 		0:  true, // Unknown
@@ -88,8 +93,13 @@ var (
 		"338107922": true, // Misty Dawn
 		"367703860": true, // Vera Cruz
 		"338236492": true, // Round Midnight
+		"367517270": true, // Tesa
 	}
 )
+
+func init() {
+	rand.Seed(time.Now().Unix())
+}
 
 func db_save_ship(details Ship) {
 	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, length, beam, dw ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
@@ -103,7 +113,7 @@ func db_save_ship(details Ship) {
 func db_lookup_ship(mmsi string) (Ship, bool) {
 	var details Ship
 
-	sqlString := "SELECT * FROM ships WHERE mmsi = " + mmsi
+	sqlString := "SELECT * FROM ships WHERE mmsi = " + mmsi + " LIMIT 1"
 
 	rows := db.QueryRow(sqlString)
 	err := rows.Scan(&details.mmsi, &details.imo, &details.name, &details.ais, &details.Type, &details.sar, &details.__id, &details.vo, &details.ff, &details.direct_link, &details.draught, &details.year, &details.gt, &details.sizes, &details.length, &details.beam, &details.dw)
@@ -115,6 +125,24 @@ func db_lookup_ship(mmsi string) (Ship, bool) {
 	}
 
 	return details, true
+}
+
+// db_lookup_ship_exists() is [hopefully] faster than loading the entire record like db_lookup_ship() does.
+func db_lookup_ship_exists(mmsi string) bool {
+	var exists int
+
+	sqlString := "SELECT EXISTS( SELECT mmsi FROM ships WHERE mmsi = " + mmsi + " LIMIT 1 )"
+
+	rows := db.QueryRow(sqlString)
+	err := rows.Scan(&exists)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			fmt.Println("lookup_ship_exists Scan:", err)
+		}
+		return false
+	}
+
+	return exists == 1
 }
 
 func db_save_sighting(details Ship) {
@@ -143,6 +171,19 @@ func db_lookup_sighting(details Ship) (Sighting, bool) {
 	}
 
 	return sighting, true
+}
+
+// db_lookup_last_sighting() is [hopefully] faster than db_lookup_sighting() because it only queries the timestamp.
+func db_lookup_last_sighting(details Ship) (timestamp int64) {
+	sqlString := "SELECT timestamp FROM sightings WHERE mmsi = " + details.mmsi + " ORDER BY timestamp DESC LIMIT 1"
+
+	rows := db.QueryRow(sqlString)
+	err := rows.Scan(&timestamp)
+	if err != nil && err != sql.ErrNoRows {
+		fmt.Println("lookup_last_sighting Scan:", err)
+	}
+
+	return
 }
 
 func db_count_rows(table string) (int64, bool) {
@@ -206,6 +247,57 @@ func web_request_map(url string) map[string]interface{} {
 	return f
 }
 
+func decode_mmsi(mmsi string) {
+	// https://en.wikipedia.org/wiki/Maritime_Mobile_Service_Identity
+	// https://en.wikipedia.org/wiki/Maritime_identification_digits
+	// https://www.navcen.uscg.gov/?pageName=mtMmsi#format
+	switch mmsi[0] {
+	case '0':
+		// Ship group, coast station, or group of coast stations
+	case '1':
+		// For use by SAR aircraft (111MIDaxx)[note 1][2]
+	case '2':
+		// MID: Europe
+	case '3':
+		// MID: North and Central America and Caribbean
+	case '4':
+		// MID: Asia
+	case '5':
+		// MID: Oceania
+	case '6':
+		// MID: Africa
+	case '7':
+		// MID: South America
+	case '8':
+		// Handheld VHF transceiver with DSC and GNSS[3]
+	case '9':
+		// Devices using a free-form number identity:
+		// Search and Rescue Transponders (970yyzzzz)
+		// Man overboard DSC and/or AIS devices (972yyzzzz)
+		// 406 MHz EPIRBs fitted with an AIS transmitter (974yyzzzz)
+		// Craft associated with a parent ship (98MIDxxxx)
+		// AtoN (aid to navigation) (99MIDaxxx)
+	}
+
+	// Trailing zeroes.
+	//
+	// If the ship is fitted with an Inmarsat A ship earth station, or has
+	// satellite equipment other than Inmarsat, then the identity needs no
+	// trailing zero.
+	//
+	// If the ship is fitted with an Inmarsat C ship earth station, or it is
+	// expected to be so equipped in the foreseeable future, then the identity
+	// could have one trailing zero:
+	//
+	// MIDxxxxx0
+	//
+	// If the ship is fitted with an Inmarsat B, C or M ship earth station,
+	// or it is expected to be so equipped in the foreseeable future, then
+	// the identity should have three trailing zeros:
+	//
+	// MIDxxx000
+}
+
 func play(file string, wavFile bool) {
 	// Open first sample File
 	f, err := os.Open(file)
@@ -243,9 +335,8 @@ func play(file string, wavFile bool) {
 
 // alert() prints a message and plays an alert tone.
 func alert(details Ship, url string) {
-	fmt.Println("\nShip Ahoy!     ", url, "     ", details, "\n")
+	fmt.Printf("\nShip Ahoy!     %s     %v\n\n", url, details)
 
-	// TODO play tone.
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
 		go play("meep.wav", true)
 	} else {
@@ -476,15 +567,12 @@ func look_at_ships(latA, lonA, latB, lonB float64) {
 		}
 
 		// If we have recently seen this ship, skip it.
-		sighting, ok := db_lookup_sighting(details)
-		if ok {
-			now := time.Now().Unix()
-			elapsed := now - sighting.timestamp
-			if elapsed < 20*60 {
-				// The ship is still crossing the visible area.
-				// No need to alert a second time.
-				continue
-			}
+		now := time.Now().Unix()
+		elapsed := now - db_lookup_last_sighting(details)
+		if elapsed < 30*60 {
+			// The ship is still crossing the visible area.
+			// No need to alert a second time.
+			continue
 		}
 
 		// We have passed all the tests! Save and alert.
@@ -533,14 +621,12 @@ func scan_nearby() {
 		go ships_in_region(latA, lonA, latB, lonB, c)
 
 		// Read from channel.
-		count := 0
 		for {
 			// Count the ships.
 			_, ok := <-c
 			if !ok {
 				break
 			}
-			count++
 		}
 
 		time.Sleep(5 * 60 * time.Second)
@@ -559,32 +645,30 @@ func scan_apt_visible() {
 
 func scan_planet() {
 	for {
-		for latA := 60.0; latA >= -70.0; latA -= 10.0 {
-			for lonA := 180.0; lonA >= -180.0; lonA -= 10.0 {
-				latB := latA + 10.0
-				lonB := lonA + 10.0
+		step := 10
+		// for lonA := 180.0; lonA >= -180.0; lonA -= 10.0 {
+		// for latA := 60.0; latA >= -70.0; latA -= 10.0 {
+		lonA := float64(rand.Intn(360-step) - 180)
+		latA := float64(rand.Intn(360-step) - 180)
 
-				// Open channel.
-				c := make(chan Ship, 10)
+		latB := latA + float64(step)
+		lonB := lonA + float64(step)
 
-				go ships_in_region(latA, lonA, latB, lonB, c)
+		// Open channel.
+		c := make(chan Ship, 10)
 
-				// Read from channel.
-				count := 0
-				for {
-					// Count the ships.
-					_, ok := <-c
-					if !ok {
-						break
-					}
-					count++
-				}
-				// fmt.Println("Scanning planet:", latA, lonA, latB, lonB, "Count:", count)
+		go ships_in_region(latA, lonA, latB, lonB, c)
 
-				time.Sleep(60 * time.Second)
+		// Read from channel.
+		for {
+			// Count the ships.
+			_, ok := <-c
+			if !ok {
+				break
 			}
-			time.Sleep(2 * 60 * time.Second)
 		}
+
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -606,9 +690,17 @@ func db_stats() {
 }
 
 func main() {
-	var (
-		err error
-	)
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	var err error
 
 	db, err = sql.Open("mysql", "ships:shipspassword@tcp(127.0.0.1:3306)/ship_ahoy")
 	if err != nil {
@@ -622,6 +714,9 @@ func main() {
 	go db_stats()
 
 	for {
-		time.Sleep(3600 * time.Second)
+		time.Sleep(3 * 60 * time.Second)
+		if *cpuprofile != "" {
+			break
+		}
 	}
 }
