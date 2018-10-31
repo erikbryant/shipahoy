@@ -257,29 +257,40 @@ func web_request_map(url string) map[string]interface{} {
 	return f
 }
 
-func decode_mmsi(mmsi string) {
+func decode_mmsi(mmsi string) string {
+	msg := ""
+
 	// https://en.wikipedia.org/wiki/Maritime_Mobile_Service_Identity
 	// https://en.wikipedia.org/wiki/Maritime_identification_digits
 	// https://www.navcen.uscg.gov/?pageName=mtMmsi#format
 	switch mmsi[0] {
 	case '0':
 		// Ship group, coast station, or group of coast stations
+		msg += "Ship group or coast station "
 	case '1':
-		// For use by SAR aircraft (111MIDaxx)[note 1][2]
+		// For use by SAR aircraft (111MIDaxx)
+		msg += "SAR aircraft "
 	case '2':
 		// MID: Europe
+		msg += "Europe "
 	case '3':
 		// MID: North and Central America and Caribbean
+		msg += "North/Central America "
 	case '4':
 		// MID: Asia
+		msg += "Asia "
 	case '5':
 		// MID: Oceania
+		msg += "Oceania "
 	case '6':
 		// MID: Africa
+		msg += "Africa "
 	case '7':
 		// MID: South America
+		msg += "South America "
 	case '8':
-		// Handheld VHF transceiver with DSC and GNSS[3]
+		// Handheld VHF transceiver with DSC and GNSS
+		msg += "Handheld VHF "
 	case '9':
 		// Devices using a free-form number identity:
 		// Search and Rescue Transponders (970yyzzzz)
@@ -287,6 +298,7 @@ func decode_mmsi(mmsi string) {
 		// 406 MHz EPIRBs fitted with an AIS transmitter (974yyzzzz)
 		// Craft associated with a parent ship (98MIDxxxx)
 		// AtoN (aid to navigation) (99MIDaxxx)
+		msg += "Misc "
 	}
 
 	// Trailing zeroes.
@@ -306,6 +318,17 @@ func decode_mmsi(mmsi string) {
 	// the identity should have three trailing zeros:
 	//
 	// MIDxxx000
+	if strings.HasSuffix(mmsi, "000") {
+		msg += "[B/C/M] "
+	} else {
+		if strings.HasSuffix(mmsi, "0") {
+			msg += "[C] "
+		} else {
+			msg += "[A or other] "
+		}
+	}
+
+	return msg
 }
 
 func play(file string, wavFile bool) {
@@ -345,7 +368,7 @@ func play(file string, wavFile bool) {
 
 // alert() prints a message and plays an alert tone.
 func alert(details Ship, url string) {
-	fmt.Printf("\nShip Ahoy!     %s     %v\n\n", url, details)
+	fmt.Printf("\nShip Ahoy!     %s     %v\n\n", url, details, "-", decode_mmsi(details.mmsi))
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
 		go play("meep.wav", true)
@@ -450,7 +473,7 @@ func get_ship_details(mmsi string, ais int) (Ship, bool) {
 	details.length = int(length)
 	details.beam = int(beam)
 
-	fmt.Println("Found new ship:", details.mmsi, details.name)
+	fmt.Println("Found:", details.mmsi, details.name, "\t-", decode_mmsi(details.mmsi))
 	db_save_ship(details)
 
 	return details, true
@@ -632,7 +655,6 @@ func scan_nearby() {
 
 		// Read from channel.
 		for {
-			// Count the ships.
 			_, ok := <-c
 			if !ok {
 				break
@@ -669,7 +691,6 @@ func scan_planet() {
 
 		// Read from channel.
 		for {
-			// Count the ships.
 			_, ok := <-c
 			if !ok {
 				break
@@ -681,41 +702,41 @@ func scan_planet() {
 }
 
 func tides() {
-	tide := NoaaDatum{
+	reading := NoaaDatum{
 		station: "9414290",
 		product: "water_level",
 		datum:   "mllw",
 	}
 
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=water_level&datum=mllw&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
+	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
 		response := web_request_map(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
-		tide.value = data["v"].(string)
-		tide.s = data["s"].(string)
-		tide.flags = data["f"].(string)
-		fmt.Println("Tide:", tide)
+		reading.value = data["v"].(string)
+		reading.s = data["s"].(string)
+		reading.flags = data["f"].(string)
+		fmt.Println("Reading:", reading)
 		time.Sleep(10 * 60 * time.Second)
 	}
 }
 
 func air_gap() {
-	airGap := NoaaDatum{
+	reading := NoaaDatum{
 		station: "9414304",
 		product: "air_gap",
 		datum:   "mllw",
 	}
 
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414304&product=air_gap&datum=mllw&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
+	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
 		response := web_request_map(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
-		airGap.value = data["v"].(string)
-		airGap.s = data["s"].(string)
-		airGap.flags = data["f"].(string)
-		fmt.Println("Air gap:", airGap)
+		reading.value = data["v"].(string)
+		reading.s = data["s"].(string)
+		reading.flags = data["f"].(string)
+		fmt.Println("Air gap:", reading)
 		time.Sleep(10 * 60 * time.Second)
 	}
 }
