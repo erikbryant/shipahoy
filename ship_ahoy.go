@@ -67,6 +67,16 @@ type Sighting struct {
 	my_lon      float64
 }
 
+type NoaaDatum struct {
+	station string
+	product string
+	datum   string
+	value   string
+	s       string
+	flags   string
+	// processing_level string // "p" - preliminary, "v" - verified
+}
+
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
@@ -552,7 +562,7 @@ func look_at_ships(latA, lonA, latB, lonB float64) {
 		}
 
 		// Only alert for ships that are moving.
-		if details.speed < 4.0 {
+		if details.speed < 1.0 {
 			continue
 		}
 
@@ -646,8 +656,6 @@ func scan_apt_visible() {
 func scan_planet() {
 	for {
 		step := 10
-		// for lonA := 180.0; lonA >= -180.0; lonA -= 10.0 {
-		// for latA := 60.0; latA >= -70.0; latA -= 10.0 {
 		lonA := float64(rand.Intn(360-step) - 180)
 		latA := float64(rand.Intn(360-step) - 180)
 
@@ -669,6 +677,46 @@ func scan_planet() {
 		}
 
 		time.Sleep(5 * time.Second)
+	}
+}
+
+func tides() {
+	tide := NoaaDatum{
+		station: "9414290",
+		product: "water_level",
+		datum:   "mllw",
+	}
+
+	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=water_level&datum=mllw&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
+
+	for {
+		response := web_request_map(url)
+		data := response["data"].([]interface{})[0].(map[string]interface{})
+		tide.value = data["v"].(string)
+		tide.s = data["s"].(string)
+		tide.flags = data["f"].(string)
+		fmt.Println("Tide:", tide)
+		time.Sleep(10 * 60 * time.Second)
+	}
+}
+
+func air_gap() {
+	airGap := NoaaDatum{
+		station: "9414304",
+		product: "air_gap",
+		datum:   "mllw",
+	}
+
+	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414304&product=air_gap&datum=mllw&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
+
+	for {
+		response := web_request_map(url)
+		data := response["data"].([]interface{})[0].(map[string]interface{})
+		airGap.value = data["v"].(string)
+		airGap.s = data["s"].(string)
+		airGap.flags = data["f"].(string)
+		fmt.Println("Air gap:", airGap)
+		time.Sleep(10 * 60 * time.Second)
 	}
 }
 
@@ -708,9 +756,11 @@ func main() {
 	}
 	defer db.Close()
 
-	// go scan_nearby()
+	go scan_nearby()
 	go scan_apt_visible()
 	go scan_planet()
+	go tides()
+	go air_gap()
 	go db_stats()
 
 	for {
