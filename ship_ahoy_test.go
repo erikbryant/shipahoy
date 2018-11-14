@@ -101,6 +101,8 @@ func TestBox(t *testing.T) {
 		expectedLonB float64
 	}{
 		{1, 2, 0, 1, 2, 1, 2},
+		{100, 100, 60, 99, 99, 101, 101},
+		{-100, -100, 60, -101, -101, -99, -99},
 	}
 
 	for _, testCase := range testCases {
