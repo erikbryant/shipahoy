@@ -80,7 +80,10 @@ type NoaaDatum struct {
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
-	db                *sql.DB
+	db *sql.DB
+
+	MyLat, MyLon = myGeo()
+
 	uninteresting_ais = map[int]bool{
 		0:  true, // Unknown
 		6:  true, // Passenger
@@ -111,16 +114,18 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-func db_save_ship(details Ship) {
+// dbSaveShip() writes ship details to the database.
+func dbSaveShip(details Ship) {
 	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, length, beam, dw ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
 
 	_, err := db.Exec(sqlString, details.mmsi, details.imo, details.name, details.ais, details.Type, details.sar, details.__id, details.vo, details.ff, details.direct_link, details.draught, details.year, details.gt, details.sizes, details.length, details.beam, details.dw)
 	if err != nil {
-		fmt.Println("db_save_ship Exec:", err)
+		fmt.Println("dbSaveShip Exec:", err)
 	}
 }
 
-func db_lookup_ship(mmsi string) (Ship, bool) {
+// dbLookupShip() reads ship details from the database.
+func dbLookupShip(mmsi string) (Ship, bool) {
 	var details Ship
 
 	sqlString := "SELECT * FROM ships WHERE mmsi = " + mmsi + " LIMIT 1"
@@ -137,8 +142,8 @@ func db_lookup_ship(mmsi string) (Ship, bool) {
 	return details, true
 }
 
-// db_lookup_ship_exists() is [hopefully] faster than loading the entire record like db_lookup_ship() does.
-func db_lookup_ship_exists(mmsi string) bool {
+// dbLookupShipExists() is [hopefully] faster than loading the entire record like dbLookupShip() does.
+func dbLookupShipExists(mmsi string) bool {
 	var exists int
 
 	sqlString := "SELECT EXISTS( SELECT mmsi FROM ships WHERE mmsi = " + mmsi + " LIMIT 1 )"
@@ -155,18 +160,18 @@ func db_lookup_ship_exists(mmsi string) bool {
 	return exists == 1
 }
 
-func db_save_sighting(details Ship) {
-	my_lat, my_lon := my_geo()
-
+// dbSaveSighting() writes the ship sighting details to the database.
+func dbSaveSighting(details Ship) {
 	sqlString := "INSERT IGNORE INTO sightings ( mmsi, ship_course, timestamp, lat, lon, my_lat, my_lon ) VALUES ( ?, ?, ?, ?, ?, ?, ?)"
 
-	_, err := db.Exec(sqlString, details.mmsi, details.ship_course, time.Now().Unix(), details.lat, details.lon, my_lat, my_lon)
+	_, err := db.Exec(sqlString, details.mmsi, details.ship_course, time.Now().Unix(), details.lat, details.lon, MyLat, MyLon)
 	if err != nil {
-		fmt.Println("db_save_sighting Exec:", err)
+		fmt.Println("dbSaveSighting Exec:", err)
 	}
 }
 
-func db_lookup_sighting(details Ship) (Sighting, bool) {
+// dbLookupSighting() reads sighting details from the database.
+func dbLookupSighting(details Ship) (Sighting, bool) {
 	var sighting Sighting
 
 	sqlString := "SELECT * FROM sightings WHERE mmsi = " + details.mmsi + " ORDER BY timestamp DESC LIMIT 1"
@@ -183,8 +188,8 @@ func db_lookup_sighting(details Ship) (Sighting, bool) {
 	return sighting, true
 }
 
-// db_lookup_last_sighting() is [hopefully] faster than db_lookup_sighting() because it only queries the timestamp.
-func db_lookup_last_sighting(details Ship) (timestamp int64) {
+// dbLookupLastSighting() is [hopefully] faster than dbLookupSighting() because it only queries the timestamp.
+func dbLookupLastSighting(details Ship) (timestamp int64) {
 	sqlString := "SELECT timestamp FROM sightings WHERE mmsi = " + details.mmsi + " ORDER BY timestamp DESC LIMIT 1"
 
 	rows := db.QueryRow(sqlString)
@@ -196,7 +201,8 @@ func db_lookup_last_sighting(details Ship) (timestamp int64) {
 	return
 }
 
-func db_count_rows(table string) (int64, bool) {
+// dbCountRows() returns the number of rows in the given table.
+func dbCountRows(table string) (int64, bool) {
 	var count int64
 
 	sqlString := "SELECT COUNT(*) FROM " + table
@@ -213,7 +219,8 @@ func db_count_rows(table string) (int64, bool) {
 	return count, true
 }
 
-func web_request(url string) string {
+// webRequest() makes an HTTP request of the given URL and returns the resulting string.
+func webRequest(url string) string {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
@@ -233,8 +240,9 @@ func web_request(url string) string {
 	return string(s)
 }
 
-func web_request_map(url string) map[string]interface{} {
-	s := web_request(url)
+// webRequestMap() makes an HTTP request of the given URL and returns the resulting map.
+func webRequestMap(url string) map[string]interface{} {
+	s := webRequest(url)
 
 	var m interface{}
 
@@ -257,7 +265,8 @@ func web_request_map(url string) map[string]interface{} {
 	return f
 }
 
-func decode_mmsi(mmsi string) string {
+// decodeMmsi() returns a string describing the data encoded in the given MMSI.
+func decodeMmsi(mmsi string) string {
 	msg := ""
 
 	// https://en.wikipedia.org/wiki/Maritime_Mobile_Service_Identity
@@ -331,6 +340,7 @@ func decode_mmsi(mmsi string) string {
 	return msg
 }
 
+// play() plays a given sound file.
 func play(file string, wavFile bool) {
 	// Open first sample File
 	f, err := os.Open(file)
@@ -368,7 +378,7 @@ func play(file string, wavFile bool) {
 
 // alert() prints a message and plays an alert tone.
 func alert(details Ship, url string) {
-	fmt.Printf("\nShip Ahoy!     %s     %v\n\n", url, details, "-", decode_mmsi(details.mmsi))
+	fmt.Printf("\nShip Ahoy!     %s     %v - %s\n\n", url, details, decodeMmsi(details.mmsi))
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
 		go play("meep.wav", true)
@@ -377,7 +387,8 @@ func alert(details Ship, url string) {
 	}
 }
 
-func to_int(val interface{}) (result int) {
+// toInt() translates an arbitrary type to an int (if possible).
+func toInt(val interface{}) (result int) {
 	switch val.(type) {
 	case int:
 		result = val.(int)
@@ -396,7 +407,8 @@ func to_int(val interface{}) (result int) {
 	return result
 }
 
-func to_string(val interface{}) (result string) {
+// toString() translates an arbitrary type to a string (if possible).
+func toString(val interface{}) (result string) {
 	switch val.(type) {
 	case int:
 		result = strconv.FormatInt(int64(val.(int)), 10)
@@ -405,7 +417,7 @@ func to_string(val interface{}) (result string) {
 	case string:
 		result = val.(string)
 	case float64:
-		result = strconv.FormatFloat(val.(float64), 'f', 8, 64)
+		result = strconv.FormatFloat(val.(float64), 'f', -1, 64)
 	default:
 		fmt.Println("Unknown type", val)
 		result = val.(string) // Force a panic.
@@ -414,7 +426,8 @@ func to_string(val interface{}) (result string) {
 	return result
 }
 
-func to_float64(val interface{}) (result float64) {
+// toFloat64() translates an arbitrary type to a float64 (if possible).
+func toFloat64(val interface{}) (result float64) {
 	switch val.(type) {
 	case int:
 		result = float64(val.(int))
@@ -432,38 +445,39 @@ func to_float64(val interface{}) (result float64) {
 	return result
 }
 
-func get_ship_details(mmsi string, ais int) (Ship, bool) {
+// getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
+func getShipDetails(mmsi string, ais int) (Ship, bool) {
 	var (
 		length int64
 		beam   int64
 	)
 
-	details, ok := db_lookup_ship(mmsi)
+	details, ok := dbLookupShip(mmsi)
 	if ok {
 		return details, true
 	}
 
 	mmsi_url := "https://www.vesselfinder.com/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
-	response := web_request_map(mmsi_url)
+	response := webRequestMap(mmsi_url)
 	if response == nil {
 		return details, false
 	}
 
 	details.mmsi = mmsi
-	details.imo = to_string(response["imo"])
-	details.name = to_string(response["name"])
+	details.imo = toString(response["imo"])
+	details.name = toString(response["name"])
 	details.ais = ais
-	details.Type = to_string(response["type"])
+	details.Type = toString(response["type"])
 	details.sar = response["sar"].(bool)
-	details.__id = to_string(response["__id"])
-	details.vo = to_int(response["vo"])
+	details.__id = toString(response["__id"])
+	details.vo = toInt(response["vo"])
 	details.ff = response["ff"].(bool)
-	details.direct_link = to_string(response["direct_link"])
-	details.draught = to_float64(response["draught"])
-	details.year = to_int(response["year"])
-	details.gt = to_int(response["gt"])
-	details.sizes = to_string(response["sizes"])
-	details.dw = to_int(response["dw"])
+	details.direct_link = toString(response["direct_link"])
+	details.draught = toFloat64(response["draught"])
+	details.year = toInt(response["year"])
+	details.gt = toInt(response["gt"])
+	details.sizes = toString(response["sizes"])
+	details.dw = toInt(response["dw"])
 
 	sizes := strings.Split(details.sizes, " ")
 	if len(sizes) == 4 && sizes[1] == "x" && sizes[3] == "m" {
@@ -473,15 +487,15 @@ func get_ship_details(mmsi string, ais int) (Ship, bool) {
 	details.length = int(length)
 	details.beam = int(beam)
 
-	fmt.Println("Found:", details.mmsi, details.name, "\t-", decode_mmsi(details.mmsi))
-	db_save_ship(details)
+	fmt.Println("Found:", details.mmsi, details.name, "\t-", decodeMmsi(details.mmsi))
+	dbSaveShip(details)
 
 	return details, true
 }
 
-// visible_from_apt() returns a bool indicating whether the ship is visible
+// visibleFromApt() returns a bool indicating whether the ship is visible
 // from our apartment window.
-func visible_from_apt(lat, lon float64) bool {
+func visibleFromApt(lat, lon float64) bool {
 	// The bounding box for the area visible from our apartment.
 	visible_latA := 37.8052
 	visible_lonA := -122.48
@@ -518,7 +532,8 @@ func visible_from_apt(lat, lon float64) bool {
 	return true
 }
 
-func ships_in_region(latA, lonA, latB, lonB float64, c chan Ship) {
+// shipsInRegion() returns the ships found in a given lat/lon area via a channel.
+func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
 	defer close(c)
 
 	latAs := strconv.FormatFloat(latA, 'f', 8, 64)
@@ -528,7 +543,7 @@ func ships_in_region(latA, lonA, latB, lonB float64, c chan Ship) {
 
 	url := "https://www.vesselfinder.com/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
-	region := web_request(url)
+	region := webRequest(url)
 	if len(region) < 10 {
 		return
 	}
@@ -555,7 +570,7 @@ func ships_in_region(latA, lonA, latB, lonB float64, c chan Ship) {
 		// name := fields[6]
 		// unknown, _ := strconv.ParseInt(fields[7], 10, 64)
 
-		details, ok := get_ship_details(mmsi, int(ais))
+		details, ok := getShipDetails(mmsi, int(ais))
 		if !ok {
 			continue
 		}
@@ -570,11 +585,12 @@ func ships_in_region(latA, lonA, latB, lonB float64, c chan Ship) {
 	}
 }
 
-func look_at_ships(latA, lonA, latB, lonB float64) {
+// lookAtShips() looks for interesting ships in a given lat/lon region.
+func lookAtShips(latA, lonA, latB, lonB float64) {
 	// Open channel
 	c := make(chan Ship, 10)
 
-	go ships_in_region(latA, lonA, latB, lonB, c)
+	go shipsInRegion(latA, lonA, latB, lonB, c)
 
 	// Read from channel
 	for {
@@ -595,13 +611,13 @@ func look_at_ships(latA, lonA, latB, lonB float64) {
 		}
 
 		// Only alert for ships visible from our apartment.
-		if !visible_from_apt(details.lat, details.lon) {
+		if !visibleFromApt(details.lat, details.lon) {
 			continue
 		}
 
 		// If we have recently seen this ship, skip it.
 		now := time.Now().Unix()
-		elapsed := now - db_lookup_last_sighting(details)
+		elapsed := now - dbLookupLastSighting(details)
 		if elapsed < 30*60 {
 			// The ship is still crossing the visible area.
 			// No need to alert a second time.
@@ -609,23 +625,23 @@ func look_at_ships(latA, lonA, latB, lonB float64) {
 		}
 
 		// We have passed all the tests! Save and alert.
-		db_save_sighting(details)
+		dbSaveSighting(details)
 		url := "https://www.vesselfinder.com/?mmsi=" + details.mmsi + "&zoom=13"
 		alert(details, url)
 	}
 }
 
-func my_geo() (lat, lon float64) {
-	my_ip := web_request("http://ifconfig.co/ip")
+// myGeo() returns the lat/lon pair of the location of the computer running this program.
+func myGeo() (lat, lon float64) {
+	my_ip := webRequest("http://ifconfig.co/ip")
 	my_ip = strings.TrimSpace(my_ip)
-	url := "https://ipstack.com/ipstack_api.php?ip=" + my_ip
-	location := web_request_map(url)
+	location := webRequestMap("https://ipstack.com/ipstack_api.php?ip=" + my_ip)
 	lat = location["latitude"].(float64)
 	lon = location["longitude"].(float64)
 	return lat, lon
 }
 
-// bbox() returns a bounding box of the circle with center of the
+// box() returns a bounding box of the circle with center of the
 // current location and radius of 'nmiles' nautical miles.
 // Returns (latA, lonA, latB, lonB) Where A is the bottom left
 // corner and B is the upper right corner.
@@ -641,17 +657,18 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 	return bbox_latA, bbox_lonA, bbox_latB, bbox_lonB
 }
 
-func scan_nearby() {
+// scanNearby() continually scans for ships within a given radius of this computer.
+func scanNearby() {
 	// TODO: If the bounding region of 'nearby' overlaps the bounding
 	// region of scan_apt_visible then do not scan 'nearby',
 	for {
-		lat, lon := my_geo()
+		lat, lon := myGeo()
 		latA, lonA, latB, lonB := box(lat, lon, 30)
 
 		// Open channel.
 		c := make(chan Ship, 10)
 
-		go ships_in_region(latA, lonA, latB, lonB, c)
+		go shipsInRegion(latA, lonA, latB, lonB, c)
 
 		// Read from channel.
 		for {
@@ -665,17 +682,19 @@ func scan_nearby() {
 	}
 }
 
-func scan_apt_visible() {
+// scanAptVisible() continually scans for ships visible from our apartment.
+func scanAptVisible() {
 	lat, lon := 37.82, -122.45 // Center of visible bay
 	latA, lonA, latB, lonB := box(lat, lon, 10)
 
 	for {
-		look_at_ships(latA, lonA, latB, lonB)
+		lookAtShips(latA, lonA, latB, lonB)
 		time.Sleep(2 * 60 * time.Second)
 	}
 }
 
-func scan_planet() {
+// scanPlanet() continually scans the entire planet for heretofore unseen ships.
+func scanPlanet() {
 	for {
 		step := 10
 		lonA := float64(rand.Intn(360-step) - 180)
@@ -687,7 +706,7 @@ func scan_planet() {
 		// Open channel.
 		c := make(chan Ship, 10)
 
-		go ships_in_region(latA, lonA, latB, lonB, c)
+		go shipsInRegion(latA, lonA, latB, lonB, c)
 
 		// Read from channel.
 		for {
@@ -701,6 +720,7 @@ func scan_planet() {
 	}
 }
 
+// tides() looks up instantaneous tide data for a given NOAA station.
 func tides() {
 	reading := NoaaDatum{
 		station: "9414290",
@@ -711,7 +731,7 @@ func tides() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := web_request_map(url)
+		response := webRequestMap(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.value = data["v"].(string)
 		reading.s = data["s"].(string)
@@ -721,7 +741,8 @@ func tides() {
 	}
 }
 
-func air_gap() {
+// airGap() looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
+func airGap() {
 	reading := NoaaDatum{
 		station: "9414304",
 		product: "air_gap",
@@ -731,7 +752,7 @@ func air_gap() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := web_request_map(url)
+		response := webRequestMap(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.value = data["v"].(string)
 		reading.s = data["s"].(string)
@@ -741,13 +762,14 @@ func air_gap() {
 	}
 }
 
-func db_stats() {
+// dbStats() prints interesting statistics about the size of the database.
+func dbStats() {
 	tables := []string{"ships", "sightings"}
 
 	for {
 		msg := "## "
 		for _, t := range tables {
-			count, ok := db_count_rows(t)
+			count, ok := dbCountRows(t)
 			if ok {
 				msg += t + ": " + strconv.FormatInt(count, 10) + " "
 			}
@@ -777,12 +799,12 @@ func main() {
 	}
 	defer db.Close()
 
-	go scan_nearby()
-	go scan_apt_visible()
-	go scan_planet()
+	go scanNearby()
+	go scanAptVisible()
+	go scanPlanet()
 	go tides()
-	go air_gap()
-	go db_stats()
+	go airGap()
+	go dbStats()
 
 	for {
 		time.Sleep(3 * 60 * time.Second)
