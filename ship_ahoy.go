@@ -29,44 +29,47 @@ import (
 	"time"
 )
 
+// Ship holds all the information we get back from the web service about a single ship.
 type Ship struct {
 	// Stored in db ...
-	mmsi        string
-	imo         string
-	name        string
-	ais         int
-	Type        string
-	sar         bool
-	__id        string
-	vo          int
-	ff          bool
-	direct_link string
-	draught     float64
-	year        int
-	gt          int
-	sizes       string
-	length      int
-	beam        int
-	dw          int
-	unknown     int // Unused.
+	mmsi       string
+	imo        string
+	name       string
+	ais        int
+	Type       string
+	sar        bool
+	ID         string
+	vo         int
+	ff         bool
+	directLink string
+	draught    float64
+	year       int
+	gt         int
+	sizes      string
+	length     int
+	beam       int
+	dw         int
+	unknown    int // Unused.
 
 	// Not stored in db ...
-	lat         float64
-	lon         float64
-	ship_course float64
-	speed       float64
+	lat        float64
+	lon        float64
+	shipCourse float64
+	speed      float64
 }
 
+// Sighting holds the relevant information about a ship sighting.
 type Sighting struct {
-	mmsi        string
-	ship_course float64
-	timestamp   int64
-	lat         float64
-	lon         float64
-	my_lat      float64
-	my_lon      float64
+	mmsi       string
+	shipCourse float64
+	timestamp  int64
+	lat        float64
+	lon        float64
+	myLat      float64
+	myLon      float64
 }
 
+// NoaaDatum holds the information we get back from the NOAA web service.
 type NoaaDatum struct {
 	station string
 	product string
@@ -82,9 +85,9 @@ var (
 
 	db *sql.DB
 
-	MyLat, MyLon = myGeo()
+	myLat, myLon = myGeo()
 
-	uninteresting_ais = map[int]bool{
+	uninterestingAIS = map[int]bool{
 		0:  true, // Unknown
 		6:  true, // Passenger
 		31: true, // Tug
@@ -95,7 +98,7 @@ var (
 		69: true, // Passenger ship
 	}
 
-	uninteresting_mmsi = map[string]bool{
+	uninterestingMMSI = map[string]bool{
 		"367123640": true, // Hawk
 		"367389640": true, // Oski
 		"366990520": true, // Del Norte
@@ -118,7 +121,7 @@ func init() {
 func dbSaveShip(details Ship) {
 	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, length, beam, dw ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
 
-	_, err := db.Exec(sqlString, details.mmsi, details.imo, details.name, details.ais, details.Type, details.sar, details.__id, details.vo, details.ff, details.direct_link, details.draught, details.year, details.gt, details.sizes, details.length, details.beam, details.dw)
+	_, err := db.Exec(sqlString, details.mmsi, details.imo, details.name, details.ais, details.Type, details.sar, details.ID, details.vo, details.ff, details.directLink, details.draught, details.year, details.gt, details.sizes, details.length, details.beam, details.dw)
 	if err != nil {
 		fmt.Println("dbSaveShip Exec:", err)
 	}
@@ -131,7 +134,7 @@ func dbLookupShip(mmsi string) (Ship, bool) {
 	sqlString := "SELECT * FROM ships WHERE mmsi = " + mmsi + " LIMIT 1"
 
 	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&details.mmsi, &details.imo, &details.name, &details.ais, &details.Type, &details.sar, &details.__id, &details.vo, &details.ff, &details.direct_link, &details.draught, &details.year, &details.gt, &details.sizes, &details.length, &details.beam, &details.dw)
+	err := rows.Scan(&details.mmsi, &details.imo, &details.name, &details.ais, &details.Type, &details.sar, &details.ID, &details.vo, &details.ff, &details.directLink, &details.draught, &details.year, &details.gt, &details.sizes, &details.length, &details.beam, &details.dw)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			fmt.Println("lookup_ship Scan:", err)
@@ -164,7 +167,7 @@ func dbLookupShipExists(mmsi string) bool {
 func dbSaveSighting(details Ship) {
 	sqlString := "INSERT IGNORE INTO sightings ( mmsi, ship_course, timestamp, lat, lon, my_lat, my_lon ) VALUES ( ?, ?, ?, ?, ?, ?, ?)"
 
-	_, err := db.Exec(sqlString, details.mmsi, details.ship_course, time.Now().Unix(), details.lat, details.lon, MyLat, MyLon)
+	_, err := db.Exec(sqlString, details.mmsi, details.shipCourse, time.Now().Unix(), details.lat, details.lon, myLat, myLon)
 	if err != nil {
 		fmt.Println("dbSaveSighting Exec:", err)
 	}
@@ -177,7 +180,7 @@ func dbLookupSighting(details Ship) (Sighting, bool) {
 	sqlString := "SELECT * FROM sightings WHERE mmsi = " + details.mmsi + " ORDER BY timestamp DESC LIMIT 1"
 
 	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&sighting.mmsi, &sighting.ship_course, &sighting.timestamp, &sighting.lat, &sighting.lon, &sighting.my_lat, &sighting.my_lon)
+	err := rows.Scan(&sighting.mmsi, &sighting.shipCourse, &sighting.timestamp, &sighting.lat, &sighting.lon, &sighting.myLat, &sighting.myLon)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			fmt.Println("lookup_sighting Scan:", err)
@@ -457,8 +460,8 @@ func getShipDetails(mmsi string, ais int) (Ship, bool) {
 		return details, true
 	}
 
-	mmsi_url := "https://www.vesselfinder.com/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
-	response := webRequestMap(mmsi_url)
+	mmsiURL := "https://www.vesselfinder.com/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
+	response := webRequestMap(mmsiURL)
 	if response == nil {
 		return details, false
 	}
@@ -469,10 +472,10 @@ func getShipDetails(mmsi string, ais int) (Ship, bool) {
 	details.ais = ais
 	details.Type = toString(response["type"])
 	details.sar = response["sar"].(bool)
-	details.__id = toString(response["__id"])
+	details.ID = toString(response["__id"])
 	details.vo = toInt(response["vo"])
 	details.ff = response["ff"].(bool)
-	details.direct_link = toString(response["direct_link"])
+	details.directLink = toString(response["direct_link"])
 	details.draught = toFloat64(response["draught"])
 	details.year = toInt(response["year"])
 	details.gt = toInt(response["gt"])
@@ -497,18 +500,18 @@ func getShipDetails(mmsi string, ais int) (Ship, bool) {
 // from our apartment window.
 func visibleFromApt(lat, lon float64) bool {
 	// The bounding box for the area visible from our apartment.
-	visible_latA := 37.8052
-	visible_lonA := -122.48
-	visible_latB := 37.8613
-	visible_lonB := -122.4092
+	visibleLatA := 37.8052
+	visibleLonA := -122.48
+	visibleLatB := 37.8613
+	visibleLonB := -122.4092
 
 	// Note that A is the bottom left corner and B is the upper
 	// right corner, so we need to work out C and D which are the
 	// upper left and lower right corners.
-	latC := visible_latB
-	latD := visible_latA
-	lonC := visible_lonA
-	lonD := visible_lonB
+	latC := visibleLatB
+	latD := visibleLatA
+	lonC := visibleLonA
+	lonD := visibleLonB
 
 	// Is the ship within the bounding box of our visible area?
 	if lat < latD || lat > latC {
@@ -561,8 +564,8 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
 		lat /= 600000.0
 		lon, _ := strconv.ParseFloat(fields[1], 64)
 		lon /= 600000.0
-		ship_course, _ := strconv.ParseFloat(fields[2], 64)
-		ship_course /= 10.0
+		shipCourse, _ := strconv.ParseFloat(fields[2], 64)
+		shipCourse /= 10.0
 		speed, _ := strconv.ParseFloat(fields[3], 64)
 		speed /= 10.0 // SOG
 		ais, _ := strconv.ParseInt(fields[4], 10, 64)
@@ -577,7 +580,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
 
 		details.lat = lat
 		details.lon = lon
-		details.ship_course = ship_course
+		details.shipCourse = shipCourse
 		details.speed = speed
 
 		// Push 'details' to channel.
@@ -606,7 +609,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		}
 
 		// Skip 'uninteresting' ships.
-		if uninteresting_ais[details.ais] || uninteresting_mmsi[details.mmsi] {
+		if uninterestingAIS[details.ais] || uninterestingMMSI[details.mmsi] {
 			continue
 		}
 
@@ -633,9 +636,9 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 
 // myGeo() returns the lat/lon pair of the location of the computer running this program.
 func myGeo() (lat, lon float64) {
-	my_ip := webRequest("http://ifconfig.co/ip")
-	my_ip = strings.TrimSpace(my_ip)
-	location := webRequestMap("https://ipstack.com/ipstack_api.php?ip=" + my_ip)
+	myIP := webRequest("http://ifconfig.co/ip")
+	myIP = strings.TrimSpace(myIP)
+	location := webRequestMap("https://ipstack.com/ipstack_api.php?ip=" + myIP)
 	lat = location["latitude"].(float64)
 	lon = location["longitude"].(float64)
 	return lat, lon
@@ -649,12 +652,12 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 	// Convert nautical miles to decimal degrees.
 	delta := nmiles / 60.0
 
-	bbox_latA := lat - delta
-	bbox_lonA := lon - delta
-	bbox_latB := lat + delta
-	bbox_lonB := lon + delta
+	bboxLatA := lat - delta
+	bboxLonA := lon - delta
+	bboxLatB := lat + delta
+	bboxLonB := lon + delta
 
-	return bbox_latA, bbox_lonA, bbox_latB, bbox_lonB
+	return bboxLatA, bboxLonA, bboxLatB, bboxLonB
 }
 
 // scanNearby() continually scans for ships within a given radius of this computer.
