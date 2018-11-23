@@ -9,8 +9,8 @@ package main
 // $ go get github.com/faiface/beep/speaker
 
 import (
+	"./web"
 	"database/sql"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/faiface/beep"
@@ -18,10 +18,8 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
 	_ "github.com/go-sql-driver/mysql"
-	"io/ioutil"
 	"log"
 	"math/rand"
-	"net/http"
 	"os"
 	"runtime/pprof"
 	"strconv"
@@ -222,52 +220,6 @@ func dbCountRows(table string) (int64, bool) {
 	return count, true
 }
 
-// webRequest() makes an HTTP request of the given URL and returns the resulting string.
-func webRequest(url string) string {
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Do:", err)
-		return ""
-	}
-
-	s, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("ReadAll:", err)
-		return ""
-	}
-
-	return string(s)
-}
-
-// webRequestMap() makes an HTTP request of the given URL and returns the resulting map.
-func webRequestMap(url string) map[string]interface{} {
-	s := webRequest(url)
-
-	var m interface{}
-
-	dec := json.NewDecoder(strings.NewReader(string(s)))
-	err := dec.Decode(&m)
-	if err != nil {
-		fmt.Println("Decode:", err)
-		return nil
-	}
-
-	// If the web request was successful we should get back a
-	// map in JSON form. If it failed we should get back an error
-	// message in string form. Make sure we got a map.
-	f, ok := m.(map[string]interface{})
-	if !ok {
-		fmt.Println(string(s))
-		return nil
-	}
-
-	return f
-}
-
 // decodeMmsi() returns a string describing the data encoded in the given MMSI.
 func decodeMmsi(mmsi string) string {
 	msg := ""
@@ -390,64 +342,6 @@ func alert(details Ship, url string) {
 	}
 }
 
-// toInt() translates an arbitrary type to an int (if possible).
-func toInt(val interface{}) (result int) {
-	switch val.(type) {
-	case int:
-		result = val.(int)
-	case int64:
-		result = int(val.(int64))
-	case string:
-		tmp, _ := strconv.ParseInt(val.(string), 10, 32)
-		result = int(tmp)
-	case float64:
-		result = int(val.(float64))
-	default:
-		fmt.Println("Unknown type", val)
-		result = val.(int) // Force a panic.
-	}
-
-	return result
-}
-
-// toString() translates an arbitrary type to a string (if possible).
-func toString(val interface{}) (result string) {
-	switch val.(type) {
-	case int:
-		result = strconv.FormatInt(int64(val.(int)), 10)
-	case int64:
-		result = strconv.FormatInt(val.(int64), 10)
-	case string:
-		result = val.(string)
-	case float64:
-		result = strconv.FormatFloat(val.(float64), 'f', -1, 64)
-	default:
-		fmt.Println("Unknown type", val)
-		result = val.(string) // Force a panic.
-	}
-
-	return result
-}
-
-// toFloat64() translates an arbitrary type to a float64 (if possible).
-func toFloat64(val interface{}) (result float64) {
-	switch val.(type) {
-	case int:
-		result = float64(val.(int))
-	case int64:
-		result = float64(val.(int64))
-	case string:
-		result, _ = strconv.ParseFloat(val.(string), 64)
-	case float64:
-		result = val.(float64)
-	default:
-		fmt.Println("Unknown type", val)
-		result = val.(float64) // Force a panic.
-	}
-
-	return result
-}
-
 // getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
 func getShipDetails(mmsi string, ais int) (Ship, bool) {
 	var (
@@ -461,26 +355,26 @@ func getShipDetails(mmsi string, ais int) (Ship, bool) {
 	}
 
 	mmsiURL := "https://www.vesselfinder.com/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
-	response := webRequestMap(mmsiURL)
+	response := web.WebRequestJSON(mmsiURL)
 	if response == nil {
 		return details, false
 	}
 
 	details.mmsi = mmsi
-	details.imo = toString(response["imo"])
-	details.name = toString(response["name"])
+	details.imo = web.ToString(response["imo"])
+	details.name = web.ToString(response["name"])
 	details.ais = ais
-	details.Type = toString(response["type"])
+	details.Type = web.ToString(response["type"])
 	details.sar = response["sar"].(bool)
-	details.ID = toString(response["__id"])
-	details.vo = toInt(response["vo"])
+	details.ID = web.ToString(response["__id"])
+	details.vo = web.ToInt(response["vo"])
 	details.ff = response["ff"].(bool)
-	details.directLink = toString(response["direct_link"])
-	details.draught = toFloat64(response["draught"])
-	details.year = toInt(response["year"])
-	details.gt = toInt(response["gt"])
-	details.sizes = toString(response["sizes"])
-	details.dw = toInt(response["dw"])
+	details.directLink = web.ToString(response["direct_link"])
+	details.draught = web.ToFloat64(response["draught"])
+	details.year = web.ToInt(response["year"])
+	details.gt = web.ToInt(response["gt"])
+	details.sizes = web.ToString(response["sizes"])
+	details.dw = web.ToInt(response["dw"])
 
 	sizes := strings.Split(details.sizes, " ")
 	if len(sizes) == 4 && sizes[1] == "x" && sizes[3] == "m" {
@@ -546,7 +440,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
 
 	url := "https://www.vesselfinder.com/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
-	region := webRequest(url)
+	region := web.WebRequest(url)
 	if len(region) < 10 {
 		return
 	}
@@ -636,9 +530,9 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 
 // myGeo() returns the lat/lon pair of the location of the computer running this program.
 func myGeo() (lat, lon float64) {
-	myIP := webRequest("http://ifconfig.co/ip")
+	myIP := web.WebRequest("http://ifconfig.co/ip")
 	myIP = strings.TrimSpace(myIP)
-	location := webRequestMap("https://ipstack.com/ipstack_api.php?ip=" + myIP)
+	location := web.WebRequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
 	lat = location["latitude"].(float64)
 	lon = location["longitude"].(float64)
 	return lat, lon
@@ -734,7 +628,7 @@ func tides() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := webRequestMap(url)
+		response := web.WebRequestJSON(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.value = data["v"].(string)
 		reading.s = data["s"].(string)
@@ -755,7 +649,7 @@ func airGap() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := webRequestMap(url)
+		response := web.WebRequestJSON(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.value = data["v"].(string)
 		reading.s = data["s"].(string)

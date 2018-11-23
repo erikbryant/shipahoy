@@ -4,63 +4,6 @@ import (
 	"testing"
 )
 
-func TestToInt(t *testing.T) {
-	testCases := []struct {
-		value    interface{}
-		expected int
-	}{
-		{int(9), 9},
-		{int64(121), 121},
-		{string("23"), 23},
-		{float64(99.4), 99},
-	}
-
-	for _, testCase := range testCases {
-		answer := toInt(testCase.value)
-		if answer != testCase.expected {
-			t.Errorf("ERROR: For %v expected %v, got %v", testCase.value, testCase.expected, answer)
-		}
-	}
-}
-
-func TestToString(t *testing.T) {
-	testCases := []struct {
-		value    interface{}
-		expected string
-	}{
-		{int(9), "9"},
-		{int64(121), "121"},
-		{string("23"), "23"},
-		{float64(99.4), "99.4"},
-	}
-
-	for _, testCase := range testCases {
-		answer := toString(testCase.value)
-		if answer != testCase.expected {
-			t.Errorf("ERROR: For %v expected %v, got %v", testCase.value, testCase.expected, answer)
-		}
-	}
-}
-
-func TestToFloat64(t *testing.T) {
-	testCases := []struct {
-		value    interface{}
-		expected float64
-	}{
-		{int(9), 9},
-		{int64(121), 121},
-		{string("23"), 23},
-		{float64(99.4), 99.4},
-	}
-
-	for _, testCase := range testCases {
-		answer := toFloat64(testCase.value)
-		if answer != testCase.expected {
-			t.Errorf("ERROR: For %v expected %v, got %v", testCase.value, testCase.expected, answer)
-		}
-	}
-}
-
 // TODO:
 // Because this hardcodes the same values that are hardcoded into
 // visibleFromApt() it makes it feel like a change detector test.
