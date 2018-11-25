@@ -75,6 +75,26 @@ func ToInt(val interface{}) (result int) {
 	return result
 }
 
+// toInt() translates an arbitrary type to an int (if possible).
+func ToInt64(val interface{}) (result int64) {
+	switch val.(type) {
+	case int:
+		result = int64(val.(int))
+	case int64:
+		result = val.(int64)
+	case string:
+		tmp, _ := strconv.ParseInt(val.(string), 10, 64)
+		result = int64(tmp)
+	case float64:
+		result = int64(val.(float64))
+	default:
+		fmt.Println("Unknown type", val)
+		result = val.(int64) // Force a panic.
+	}
+
+	return result
+}
+
 // toString() translates an arbitrary type to a string (if possible).
 func ToString(val interface{}) (result string) {
 	switch val.(type) {

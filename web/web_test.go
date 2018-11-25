@@ -23,6 +23,25 @@ func TestToInt(t *testing.T) {
 	}
 }
 
+func TestToInt64(t *testing.T) {
+	testCases := []struct {
+		value    interface{}
+		expected int64
+	}{
+		{int(9), 9},
+		{int64(121121121121), 121121121121},
+		{string("2323232323"), 2323232323},
+		{float64(9988776655.4), 9988776655},
+	}
+
+	for _, testCase := range testCases {
+		answer := ToInt64(testCase.value)
+		if answer != testCase.expected {
+			t.Errorf("ERROR: For %v expected %v, got %v", testCase.value, testCase.expected, answer)
+		}
+	}
+}
+
 func TestToString(t *testing.T) {
 	testCases := []struct {
 		value    interface{}
