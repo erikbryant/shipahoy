@@ -355,7 +355,7 @@ func getShipDetails(mmsi string, ais int) (Ship, bool) {
 	}
 
 	mmsiURL := "https://www.vesselfinder.com/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
-	response := web.WebRequestJSON(mmsiURL)
+	response := web.RequestJSON(mmsiURL)
 	if response == nil {
 		return details, false
 	}
@@ -440,7 +440,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
 
 	url := "https://www.vesselfinder.com/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
-	region := web.WebRequest(url)
+	region := web.Request(url)
 	if len(region) < 10 {
 		return
 	}
@@ -530,9 +530,9 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 
 // myGeo() returns the lat/lon pair of the location of the computer running this program.
 func myGeo() (lat, lon float64) {
-	myIP := web.WebRequest("http://ifconfig.co/ip")
+	myIP := web.Request("http://ifconfig.co/ip")
 	myIP = strings.TrimSpace(myIP)
-	location := web.WebRequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
+	location := web.RequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
 	lat = location["latitude"].(float64)
 	lon = location["longitude"].(float64)
 	return lat, lon
@@ -628,7 +628,7 @@ func tides() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := web.WebRequestJSON(url)
+		response := web.RequestJSON(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.value = data["v"].(string)
 		reading.s = data["s"].(string)
@@ -649,7 +649,7 @@ func airGap() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := web.WebRequestJSON(url)
+		response := web.RequestJSON(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.value = data["v"].(string)
 		reading.s = data["s"].(string)

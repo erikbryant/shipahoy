@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// webRequest() makes an HTTP request of the given URL and returns the resulting string.
-func WebRequest(url string) string {
+// Request makes an HTTP request of the given URL and returns the resulting string.
+func Request(url string) string {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
@@ -30,16 +30,18 @@ func WebRequest(url string) string {
 	return string(s)
 }
 
-// webRequestJSON() makes an HTTP request of the given URL and returns the resulting JSON map.
-func WebRequestJSON(url string) map[string]interface{} {
-	s := WebRequest(url)
+// RequestJSON makes an HTTP request of the given URL and returns the resulting JSON map.
+func RequestJSON(url string) map[string]interface{} {
+	s := Request(url)
 
 	var m interface{}
 
 	dec := json.NewDecoder(strings.NewReader(string(s)))
 	err := dec.Decode(&m)
 	if err != nil {
-		fmt.Println("Decode:", err)
+		if err.Error() != "EOF" {
+			fmt.Println("Decode:", err)
+		}
 		return nil
 	}
 
@@ -55,7 +57,7 @@ func WebRequestJSON(url string) map[string]interface{} {
 	return f
 }
 
-// toInt() translates an arbitrary type to an int (if possible).
+// ToInt translates an arbitrary type to an int (if possible).
 func ToInt(val interface{}) (result int) {
 	switch val.(type) {
 	case int:
@@ -75,7 +77,7 @@ func ToInt(val interface{}) (result int) {
 	return result
 }
 
-// toInt() translates an arbitrary type to an int (if possible).
+// ToInt64 translates an arbitrary type to an int (if possible).
 func ToInt64(val interface{}) (result int64) {
 	switch val.(type) {
 	case int:
@@ -95,7 +97,7 @@ func ToInt64(val interface{}) (result int64) {
 	return result
 }
 
-// toString() translates an arbitrary type to a string (if possible).
+// ToString translates an arbitrary type to a string (if possible).
 func ToString(val interface{}) (result string) {
 	switch val.(type) {
 	case int:
@@ -114,7 +116,7 @@ func ToString(val interface{}) (result string) {
 	return result
 }
 
-// toFloat64() translates an arbitrary type to a float64 (if possible).
+// ToFloat64 translates an arbitrary type to a float64 (if possible).
 func ToFloat64(val interface{}) (result float64) {
 	switch val.(type) {
 	case int:
