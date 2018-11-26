@@ -9,15 +9,14 @@ package main
 // $ go get github.com/faiface/beep/speaker
 
 import (
+	"./database"
 	"./web"
-	"database/sql"
 	"flag"
 	"fmt"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
-	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"math/rand"
 	"os"
@@ -27,63 +26,11 @@ import (
 	"time"
 )
 
-// Ship holds all the information we get back from the web service about a single ship.
-type Ship struct {
-	// Stored in db ...
-	mmsi       string
-	imo        string
-	name       string
-	ais        int
-	Type       string
-	sar        bool
-	ID         string
-	vo         int
-	ff         bool
-	directLink string
-	draught    float64
-	year       int
-	gt         int
-	sizes      string
-	length     int
-	beam       int
-	dw         int
-	unknown    int // Unused.
-
-	// Not stored in db ...
-	lat        float64
-	lon        float64
-	shipCourse float64
-	speed      float64
-}
-
-// Sighting holds the relevant information about a ship sighting.
-type Sighting struct {
-	mmsi       string
-	shipCourse float64
-	timestamp  int64
-	lat        float64
-	lon        float64
-	myLat      float64
-	myLon      float64
-}
-
-// NoaaDatum holds the information we get back from the NOAA web service.
-type NoaaDatum struct {
-	station string
-	product string
-	datum   string
-	value   string
-	s       string
-	flags   string
-	// processing_level string // "p" - preliminary, "v" - verified
-}
-
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
-	db *sql.DB
-
-	myLat, myLon = myGeo()
+	myLat float64
+	myLon float64
 
 	uninterestingAIS = map[int]bool{
 		0:  true, // Unknown
@@ -113,111 +60,17 @@ var (
 
 func init() {
 	rand.Seed(time.Now().Unix())
+	myLat, myLon = MyGeo()
 }
 
-// dbSaveShip() writes ship details to the database.
-func dbSaveShip(details Ship) {
-	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, length, beam, dw ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
-
-	_, err := db.Exec(sqlString, details.mmsi, details.imo, details.name, details.ais, details.Type, details.sar, details.ID, details.vo, details.ff, details.directLink, details.draught, details.year, details.gt, details.sizes, details.length, details.beam, details.dw)
-	if err != nil {
-		fmt.Println("dbSaveShip Exec:", err)
-	}
-}
-
-// dbLookupShip() reads ship details from the database.
-func dbLookupShip(mmsi string) (Ship, bool) {
-	var details Ship
-
-	sqlString := "SELECT * FROM ships WHERE mmsi = " + mmsi + " LIMIT 1"
-
-	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&details.mmsi, &details.imo, &details.name, &details.ais, &details.Type, &details.sar, &details.ID, &details.vo, &details.ff, &details.directLink, &details.draught, &details.year, &details.gt, &details.sizes, &details.length, &details.beam, &details.dw)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			fmt.Println("lookup_ship Scan:", err)
-		}
-		return details, false
-	}
-
-	return details, true
-}
-
-// dbLookupShipExists() is [hopefully] faster than loading the entire record like dbLookupShip() does.
-func dbLookupShipExists(mmsi string) bool {
-	var exists int
-
-	sqlString := "SELECT EXISTS( SELECT mmsi FROM ships WHERE mmsi = " + mmsi + " LIMIT 1 )"
-
-	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&exists)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			fmt.Println("lookup_ship_exists Scan:", err)
-		}
-		return false
-	}
-
-	return exists == 1
-}
-
-// dbSaveSighting() writes the ship sighting details to the database.
-func dbSaveSighting(details Ship) {
-	sqlString := "INSERT IGNORE INTO sightings ( mmsi, ship_course, timestamp, lat, lon, my_lat, my_lon ) VALUES ( ?, ?, ?, ?, ?, ?, ?)"
-
-	_, err := db.Exec(sqlString, details.mmsi, details.shipCourse, time.Now().Unix(), details.lat, details.lon, myLat, myLon)
-	if err != nil {
-		fmt.Println("dbSaveSighting Exec:", err)
-	}
-}
-
-// dbLookupSighting() reads sighting details from the database.
-func dbLookupSighting(details Ship) (Sighting, bool) {
-	var sighting Sighting
-
-	sqlString := "SELECT * FROM sightings WHERE mmsi = " + details.mmsi + " ORDER BY timestamp DESC LIMIT 1"
-
-	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&sighting.mmsi, &sighting.shipCourse, &sighting.timestamp, &sighting.lat, &sighting.lon, &sighting.myLat, &sighting.myLon)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			fmt.Println("lookup_sighting Scan:", err)
-		}
-		return sighting, false
-	}
-
-	return sighting, true
-}
-
-// dbLookupLastSighting() is [hopefully] faster than dbLookupSighting() because it only queries the timestamp.
-func dbLookupLastSighting(details Ship) (timestamp int64) {
-	sqlString := "SELECT timestamp FROM sightings WHERE mmsi = " + details.mmsi + " ORDER BY timestamp DESC LIMIT 1"
-
-	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&timestamp)
-	if err != nil && err != sql.ErrNoRows {
-		fmt.Println("lookup_last_sighting Scan:", err)
-	}
-
-	return
-}
-
-// dbCountRows() returns the number of rows in the given table.
-func dbCountRows(table string) (int64, bool) {
-	var count int64
-
-	sqlString := "SELECT COUNT(*) FROM " + table
-
-	row := db.QueryRow(sqlString)
-	err := row.Scan(&count)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			fmt.Println("count_rows Scan:", err)
-		}
-		return 0, false
-	}
-
-	return count, true
+// MyGeo returns the lat/lon pair of the location of the computer running this program.
+func MyGeo() (lat, lon float64) {
+	myIP := web.Request("http://ifconfig.co/ip")
+	myIP = strings.TrimSpace(myIP)
+	location := web.RequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
+	lat = location["latitude"].(float64)
+	lon = location["longitude"].(float64)
+	return lat, lon
 }
 
 // decodeMmsi() returns a string describing the data encoded in the given MMSI.
@@ -332,8 +185,8 @@ func play(file string, wavFile bool) {
 }
 
 // alert() prints a message and plays an alert tone.
-func alert(details Ship, url string) {
-	fmt.Printf("\nShip Ahoy!     %s     %v - %s\n\n", url, details, decodeMmsi(details.mmsi))
+func alert(details database.Ship, url string) {
+	fmt.Printf("\nShip Ahoy!     %s     %v - %s\n\n", url, details, decodeMmsi(details.MMSI))
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
 		go play("meep.wav", true)
@@ -343,13 +196,13 @@ func alert(details Ship, url string) {
 }
 
 // getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
-func getShipDetails(mmsi string, ais int) (Ship, bool) {
+func getShipDetails(mmsi string, ais int) (database.Ship, bool) {
 	var (
 		length int64
 		beam   int64
 	)
 
-	details, ok := dbLookupShip(mmsi)
+	details, ok := database.LookupShip(mmsi)
 	if ok {
 		return details, true
 	}
@@ -360,32 +213,32 @@ func getShipDetails(mmsi string, ais int) (Ship, bool) {
 		return details, false
 	}
 
-	details.mmsi = mmsi
-	details.imo = web.ToString(response["imo"])
-	details.name = web.ToString(response["name"])
-	details.ais = ais
+	details.MMSI = mmsi
+	details.IMO = web.ToString(response["imo"])
+	details.Name = web.ToString(response["name"])
+	details.AIS = ais
 	details.Type = web.ToString(response["type"])
-	details.sar = response["sar"].(bool)
+	details.SAR = response["sar"].(bool)
 	details.ID = web.ToString(response["__id"])
-	details.vo = web.ToInt(response["vo"])
-	details.ff = response["ff"].(bool)
-	details.directLink = web.ToString(response["direct_link"])
-	details.draught = web.ToFloat64(response["draught"])
-	details.year = web.ToInt(response["year"])
-	details.gt = web.ToInt(response["gt"])
-	details.sizes = web.ToString(response["sizes"])
-	details.dw = web.ToInt(response["dw"])
+	details.VO = web.ToInt(response["vo"])
+	details.FF = response["ff"].(bool)
+	details.DirectLink = web.ToString(response["direct_link"])
+	details.Draught = web.ToFloat64(response["draught"])
+	details.Year = web.ToInt(response["year"])
+	details.GT = web.ToInt(response["gt"])
+	details.Sizes = web.ToString(response["sizes"])
+	details.DW = web.ToInt(response["dw"])
 
-	sizes := strings.Split(details.sizes, " ")
+	sizes := strings.Split(details.Sizes, " ")
 	if len(sizes) == 4 && sizes[1] == "x" && sizes[3] == "m" {
 		length, _ = strconv.ParseInt(sizes[0], 10, 64)
 		beam, _ = strconv.ParseInt(sizes[2], 10, 64)
 	}
-	details.length = int(length)
-	details.beam = int(beam)
+	details.Length = int(length)
+	details.Beam = int(beam)
 
-	fmt.Println("Found:", details.mmsi, details.name, "\t-", decodeMmsi(details.mmsi))
-	dbSaveShip(details)
+	fmt.Println("Found:", details.MMSI, details.Name, "\t-", decodeMmsi(details.MMSI))
+	database.SaveShip(details)
 
 	return details, true
 }
@@ -430,7 +283,7 @@ func visibleFromApt(lat, lon float64) bool {
 }
 
 // shipsInRegion() returns the ships found in a given lat/lon area via a channel.
-func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
+func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 	defer close(c)
 
 	latAs := strconv.FormatFloat(latA, 'f', 8, 64)
@@ -472,10 +325,10 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
 			continue
 		}
 
-		details.lat = lat
-		details.lon = lon
-		details.shipCourse = shipCourse
-		details.speed = speed
+		details.Lat = lat
+		details.Lon = lon
+		details.ShipCourse = shipCourse
+		details.Speed = speed
 
 		// Push 'details' to channel.
 		c <- details
@@ -485,7 +338,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan Ship) {
 // lookAtShips() looks for interesting ships in a given lat/lon region.
 func lookAtShips(latA, lonA, latB, lonB float64) {
 	// Open channel
-	c := make(chan Ship, 10)
+	c := make(chan database.Ship, 10)
 
 	go shipsInRegion(latA, lonA, latB, lonB, c)
 
@@ -498,23 +351,23 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		}
 
 		// Only alert for ships that are moving.
-		if details.speed < 1.0 {
+		if details.Speed < 1.0 {
 			continue
 		}
 
 		// Skip 'uninteresting' ships.
-		if uninterestingAIS[details.ais] || uninterestingMMSI[details.mmsi] {
+		if uninterestingAIS[details.AIS] || uninterestingMMSI[details.MMSI] {
 			continue
 		}
 
 		// Only alert for ships visible from our apartment.
-		if !visibleFromApt(details.lat, details.lon) {
+		if !visibleFromApt(details.Lat, details.Lon) {
 			continue
 		}
 
 		// If we have recently seen this ship, skip it.
 		now := time.Now().Unix()
-		elapsed := now - dbLookupLastSighting(details)
+		elapsed := now - database.LookupLastSighting(details)
 		if elapsed < 30*60 {
 			// The ship is still crossing the visible area.
 			// No need to alert a second time.
@@ -522,20 +375,10 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		}
 
 		// We have passed all the tests! Save and alert.
-		dbSaveSighting(details)
-		url := "https://www.vesselfinder.com/?mmsi=" + details.mmsi + "&zoom=13"
+		database.SaveSighting(details, myLat, myLon)
+		url := "https://www.vesselfinder.com/?mmsi=" + details.MMSI + "&zoom=13"
 		alert(details, url)
 	}
-}
-
-// myGeo() returns the lat/lon pair of the location of the computer running this program.
-func myGeo() (lat, lon float64) {
-	myIP := web.Request("http://ifconfig.co/ip")
-	myIP = strings.TrimSpace(myIP)
-	location := web.RequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
-	lat = location["latitude"].(float64)
-	lon = location["longitude"].(float64)
-	return lat, lon
 }
 
 // box() returns a bounding box of the circle with center of the
@@ -558,13 +401,13 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 func scanNearby() {
 	// TODO: If the bounding region of 'nearby' overlaps the bounding
 	// region of scan_apt_visible then do not scan 'nearby',
+	lat, lon := MyGeo()
+	latA, lonA, latB, lonB := box(lat, lon, 30)
+
+	// Open channel.
+	c := make(chan database.Ship, 10)
+
 	for {
-		lat, lon := myGeo()
-		latA, lonA, latB, lonB := box(lat, lon, 30)
-
-		// Open channel.
-		c := make(chan Ship, 10)
-
 		go shipsInRegion(latA, lonA, latB, lonB, c)
 
 		// Read from channel.
@@ -601,7 +444,7 @@ func scanPlanet() {
 		lonB := lonA + float64(step)
 
 		// Open channel.
-		c := make(chan Ship, 10)
+		c := make(chan database.Ship, 10)
 
 		go shipsInRegion(latA, lonA, latB, lonB, c)
 
@@ -619,20 +462,20 @@ func scanPlanet() {
 
 // tides() looks up instantaneous tide data for a given NOAA station.
 func tides() {
-	reading := NoaaDatum{
-		station: "9414290",
-		product: "water_level",
-		datum:   "mllw",
+	reading := database.NoaaDatum{
+		Station: "9414290",
+		Product: "water_level",
+		Datum:   "mllw",
 	}
 
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
+	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
 		response := web.RequestJSON(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
-		reading.value = data["v"].(string)
-		reading.s = data["s"].(string)
-		reading.flags = data["f"].(string)
+		reading.Value = data["v"].(string)
+		reading.S = data["s"].(string)
+		reading.Flags = data["f"].(string)
 		fmt.Println("Reading:", reading)
 		time.Sleep(10 * 60 * time.Second)
 	}
@@ -640,20 +483,20 @@ func tides() {
 
 // airGap() looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
 func airGap() {
-	reading := NoaaDatum{
-		station: "9414304",
-		product: "air_gap",
-		datum:   "mllw",
+	reading := database.NoaaDatum{
+		Station: "9414304",
+		Product: "air_gap",
+		Datum:   "mllw",
 	}
 
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.station + "&product=" + reading.product + "&datum=" + reading.datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
+	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
 		response := web.RequestJSON(url)
 		data := response["data"].([]interface{})[0].(map[string]interface{})
-		reading.value = data["v"].(string)
-		reading.s = data["s"].(string)
-		reading.flags = data["f"].(string)
+		reading.Value = data["v"].(string)
+		reading.S = data["s"].(string)
+		reading.Flags = data["f"].(string)
 		fmt.Println("Air gap:", reading)
 		time.Sleep(10 * 60 * time.Second)
 	}
@@ -666,7 +509,7 @@ func dbStats() {
 	for {
 		msg := "## "
 		for _, t := range tables {
-			count, ok := dbCountRows(t)
+			count, ok := database.CountRows(t)
 			if ok {
 				msg += t + ": " + strconv.FormatInt(count, 10) + " "
 			}
@@ -688,13 +531,8 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	var err error
-
-	db, err = sql.Open("mysql", "ships:shipspassword@tcp(127.0.0.1:3306)/ship_ahoy")
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	defer db.Close()
+	database.Open()
+	defer database.Close()
 
 	go scanNearby()
 	go scanAptVisible()
