@@ -4,7 +4,7 @@ Alert when ships of interest are about to enter the part of the bay visible from
 Our apartment looks over part of the San Francisco bay. Alert if a ship of interest is about to enter that area. One side of that area is the part of the bay to the west of the Golden Gate bridge. The other part is the area to the east of Angel Island/Alcatraz.
 
 
-Implementation Notes and Background
+# Implementation Notes and Background
 
 Most recent ports of call.
 https://www.vesselfinder.com/api/pro/portcalls/538007561?s
@@ -27,9 +27,9 @@ http://www.mmsispace.com/common/getdetails_v3.php?mmsi=369083000
 Lat Lon calc.
 https://www.movable-type.co.uk/scripts/latlong.html
 
-Data Requests
+# Data Requests
 
-Ships in a region response record:
+Ships in a region response record (from VesselFinder):
  22235849   -- lat * 600000
  522        -- lon * 600000
  683        -- Course *10
@@ -84,9 +84,10 @@ Data query to ship_ahoy.ships
  'dw': 13685,
 }
 
+# SQL statements
 
-SQL statements
- CREATE TABLE ships (
+`
+CREATE TABLE ships (
     mmsi varchar(20),
     imo varchar(20),
     name varchar(128),
@@ -135,26 +136,27 @@ SQL statements
     my_lat float,
     my_lon float
  );
+`
 
-Backup / Restore
+# Backup / Restore
 
+`
 mysqldump -u ships -p db_name t1 > dump.sql
 mysql -u ships -p db_name < dump.sql
+`
 
-
-
-
-Tidal Information
+# Tidal Information
 
 https://tidesandcurrents.noaa.gov/api/
 
-Presidio tidal sensors
-https://tidesandcurrents.noaa.gov/stationhome.html?id=9414290
-Bay Bridge Air Gap sensors
-https://tidesandcurrents.noaa.gov/map/index.html?id=9414304
+Presidio tidal sensors https://tidesandcurrents.noaa.gov/stationhome.html?id=9414290
+
+Bay Bridge Air Gap sensors https://tidesandcurrents.noaa.gov/map/index.html?id=9414304
 
 Example queries
+
 https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=datums&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
+`
 <data>
 <datum n="MHHW" v="11.817"/>
 <datum n="MHW" v="11.208"/>
@@ -171,21 +173,28 @@ https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&pro
 <datum n="LWI" v="2.781"/>
 <datum n="HWI" v="24.721"/>
 </data>
+`
 
-# Mean Lower Low Water for Presidio
+## Mean Lower Low Water for Presidio
+
 https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=water_level&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
+`
 <data>
 <metadata id="9414290" name="San Francisco" lat="37.8063" lon="-122.4659"/>
 <observations>
 <wl t="2018-10-22 17:00" v="1.458" s="0.062" f="0,0,0,0" q="p"/>
 </observations>
 </data>
+`
 
-# Air gap for Bay Bridge D-E span
+## Air gap for Bay Bridge D-E span
+
 https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414304&product=air_gap&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
+`
 <data>
 <metadata id="9414304" name="San Francisco-Oakland Bay Bridge Air Gap" lat="37.8044" lon="-122.3728"/>
 <observations>
 <ag t="2018-10-24 16:48" v="204.400" s="0.121" f="1,0,0,0"/>
 </observations>
 </data>
+`
