@@ -237,7 +237,7 @@ func getShipDetails(mmsi string, ais int) (database.Ship, bool) {
 	details.Length = int(length)
 	details.Beam = int(beam)
 
-	fmt.Println("Found:", details.MMSI, details.Name, "\t-", decodeMmsi(details.MMSI))
+	fmt.Printf("Found: %s %-25s %s\n", details.MMSI, details.Name, decodeMmsi(details.MMSI))
 	database.SaveShip(details)
 
 	return details, true
@@ -416,6 +416,8 @@ func scanNearby() {
 			if !ok {
 				break
 			}
+
+			// TODO: Add alerting to notify ships are near.
 		}
 
 		time.Sleep(5 * 60 * time.Second)
@@ -534,7 +536,7 @@ func main() {
 	database.Open()
 	defer database.Close()
 
-	go scanNearby()
+	// go scanNearby()
 	go scanAptVisible()
 	go scanPlanet()
 	go tides()
