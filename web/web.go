@@ -31,18 +31,14 @@ func Request(url string) string {
 }
 
 // RequestJSON makes an HTTP request of the given URL and returns the resulting JSON map.
-func RequestJSON(url string) map[string]interface{} {
-	s := Request(url)
+func RequestJSON(url string) (map[string]interface{}, error) {
+	resp := Request(url)
+	dec := json.NewDecoder(strings.NewReader(string(resp)))
 
 	var m interface{}
-
-	dec := json.NewDecoder(strings.NewReader(string(s)))
 	err := dec.Decode(&m)
 	if err != nil {
-		if err.Error() != "EOF" {
-			fmt.Println("Decode:", err)
-		}
-		return nil
+		return nil, err
 	}
 
 	// If the web request was successful we should get back a
@@ -50,11 +46,10 @@ func RequestJSON(url string) map[string]interface{} {
 	// message in string form. Make sure we got a map.
 	f, ok := m.(map[string]interface{})
 	if !ok {
-		fmt.Println(string(s))
-		return nil
+		return nil, fmt.Errorf("RequestJSON: Expected a map, got: /%s/", string(resp))
 	}
 
-	return f
+	return f, nil
 }
 
 // ToInt translates an arbitrary type to an int (if possible).
