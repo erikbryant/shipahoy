@@ -65,9 +65,14 @@ func init() {
 
 // MyGeo returns the lat/lon pair of the location of the computer running this program.
 func MyGeo() (lat, lon float64) {
-	myIP := web.Request("http://ifconfig.co/ip")
+	// myIP := web.Request("http://ifconfig.co/ip") <-- site has malware
+	myIP := web.Request("https://api.ipify.org")
 	myIP = strings.TrimSpace(myIP)
-	location := web.RequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
+	location, err := web.RequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
+	if err != nil {
+		fmt.Println("ERROR: Unable to get geo location. Assuming you are at home.")
+		return 37.7957, -122.421
+	}
 	lat = location["latitude"].(float64)
 	lon = location["longitude"].(float64)
 	return lat, lon
@@ -208,8 +213,8 @@ func getShipDetails(mmsi string, ais int) (database.Ship, bool) {
 	}
 
 	mmsiURL := "https://www.vesselfinder.com/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
-	response := web.RequestJSON(mmsiURL)
-	if response == nil {
+	response, err := web.RequestJSON(mmsiURL)
+	if err != nil || response == nil {
 		return details, false
 	}
 
@@ -473,7 +478,11 @@ func tides() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := web.RequestJSON(url)
+		response, err := web.RequestJSON(url)
+		if err != nil {
+			fmt.Println("Unable to get tide data: ", err)
+			continue
+		}
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.Value = data["v"].(string)
 		reading.S = data["s"].(string)
@@ -494,7 +503,11 @@ func airGap() {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
-		response := web.RequestJSON(url)
+		response, err := web.RequestJSON(url)
+		if err != nil {
+			fmt.Println("Unable to get air gap data: ", err)
+			continue
+		}
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.Value = data["v"].(string)
 		reading.S = data["s"].(string)
