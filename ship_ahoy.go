@@ -30,9 +30,9 @@ import (
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
-	passPhrase     = flag.String("passPhrase", "", "Passphrase to decrypt API key")
-	geoApiKeyCrypt = "2nC/f4XNjMo3Ddmn1b+aHed5ybr01za4plBCWjy+bjLkBIgT4+3QjtugSuq2iItxNRW9OodilLqQ7OG+"
-	geoApiKey      string
+	passPhrase     = flag.String("passPhrase", "", "Passphrase to unlock API key")
+	geoAPIKeyCrypt = "2nC/f4XNjMo3Ddmn1b+aHed5ybr01za4plBCWjy+bjLkBIgT4+3QjtugSuq2iItxNRW9OodilLqQ7OG+"
+	geoAPIKey      string
 
 	myLat float64
 	myLon float64
@@ -64,10 +64,7 @@ var (
 )
 
 func init() {
-	flag.Parse()
 	rand.Seed(time.Now().Unix())
-	geoApiKey = aes.Decrypt(geoApiKeyCrypt, *passPhrase)
-	myLat, myLon = MyGeo()
 }
 
 // MyGeo returns the lat/lon pair of the location of the computer running this program.
@@ -75,7 +72,7 @@ func MyGeo() (lat, lon float64) {
 	// myIP := web.Request("http://ifconfig.co/ip") <-- site has malware
 	// myIP := web.Request("https://api.ipify.org")
 	// myIP = strings.TrimSpace(myIP)
-	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key=" + geoApiKey)
+	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key=" + geoAPIKey)
 	if err != nil {
 		fmt.Println("ERROR: Unable to get geo location. Assuming you are home. Message:", err)
 		return 37.8007, -122.4097
@@ -556,6 +553,7 @@ func dbStats() {
 
 func main() {
 	flag.Parse()
+
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -564,6 +562,9 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+
+	geoAPIKey = aes.Decrypt(geoAPIKeyCrypt, *passPhrase)
+	myLat, myLon = MyGeo()
 
 	database.Open()
 	defer database.Close()
