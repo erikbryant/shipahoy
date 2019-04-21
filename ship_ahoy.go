@@ -10,9 +10,10 @@ package main
 
 import (
 	"./database"
-	"./web"
 	"flag"
 	"fmt"
+	"github.com/erikbryant/aes"
+	"github.com/erikbryant/web"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
@@ -28,6 +29,10 @@ import (
 
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
+	passPhrase     = flag.String("passPhrase", "", "Passphrase to decrypt API key")
+	geoApiKeyCrypt = "2nC/f4XNjMo3Ddmn1b+aHed5ybr01za4plBCWjy+bjLkBIgT4+3QjtugSuq2iItxNRW9OodilLqQ7OG+"
+	geoApiKey      string
 
 	myLat float64
 	myLon float64
@@ -59,19 +64,25 @@ var (
 )
 
 func init() {
+	flag.Parse()
 	rand.Seed(time.Now().Unix())
+	geoApiKey = aes.Decrypt(geoApiKeyCrypt, *passPhrase)
 	myLat, myLon = MyGeo()
 }
 
 // MyGeo returns the lat/lon pair of the location of the computer running this program.
 func MyGeo() (lat, lon float64) {
 	// myIP := web.Request("http://ifconfig.co/ip") <-- site has malware
-	myIP := web.Request("https://api.ipify.org")
-	myIP = strings.TrimSpace(myIP)
-	location, err := web.RequestJSON("https://ipstack.com/ipstack_api.php?ip=" + myIP)
+	// myIP := web.Request("https://api.ipify.org")
+	// myIP = strings.TrimSpace(myIP)
+	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key=" + geoApiKey)
 	if err != nil {
-		fmt.Println("ERROR: Unable to get geo location. Assuming you are at home.")
-		return 37.7957, -122.421
+		fmt.Println("ERROR: Unable to get geo location. Assuming you are home. Message:", err)
+		return 37.8007, -122.4097
+	}
+	if location["error"] != nil {
+		fmt.Println("ERROR: Unable to get geo location. Assuming you are home. Message:", location["error"])
+		return 37.8007, -122.4097
 	}
 	lat = location["latitude"].(float64)
 	lon = location["longitude"].(float64)
@@ -483,6 +494,10 @@ func tides() {
 			fmt.Println("Unable to get tide data: ", err)
 			continue
 		}
+		if response["error"] != nil {
+			fmt.Println("Unable to get tide data: ", response["error"])
+			continue
+		}
 		data := response["data"].([]interface{})[0].(map[string]interface{})
 		reading.Value = data["v"].(string)
 		reading.S = data["s"].(string)
@@ -506,6 +521,10 @@ func airGap() {
 		response, err := web.RequestJSON(url)
 		if err != nil {
 			fmt.Println("Unable to get air gap data: ", err)
+			continue
+		}
+		if response["error"] != nil {
+			// fmt.Println("Unable to get air gap data: ", response["error"])
 			continue
 		}
 		data := response["data"].([]interface{})[0].(map[string]interface{})
