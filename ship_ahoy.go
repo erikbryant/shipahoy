@@ -54,12 +54,13 @@ var (
 		"366990520": true, // Del Norte
 		"367566960": true, // F/V Pioneer
 		"367469070": true, // Sunset Hornblower
-		"338234637": true, // HEWESCRAFT 220 OP
+		"338234637": true, // Hewescraft 220 OP
 		"366918840": true, // Happy Days
 		"338107922": true, // Misty Dawn
 		"367703860": true, // Vera Cruz
 		"338236492": true, // Round Midnight
 		"367517270": true, // Tesa
+		"367533950": true, // Sausalito Bmpress
 	}
 )
 
@@ -411,7 +412,7 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 }
 
 // scanNearby() continually scans for ships within a given radius of this computer.
-func scanNearby() {
+func scanNearby(sleepSecs time.Duration) {
 	// TODO: If the bounding region of 'nearby' overlaps the bounding
 	// region of scan_apt_visible then do not scan 'nearby',
 	lat, lon := MyGeo()
@@ -433,23 +434,23 @@ func scanNearby() {
 			// TODO: Add alerting to notify ships are near.
 		}
 
-		time.Sleep(5 * 60 * time.Second)
+		time.Sleep(sleepSecs)
 	}
 }
 
 // scanAptVisible() continually scans for ships visible from our apartment.
-func scanAptVisible() {
+func scanAptVisible(sleepSecs time.Duration) {
 	lat, lon := 37.82, -122.45 // Center of visible bay
 	latA, lonA, latB, lonB := box(lat, lon, 10)
 
 	for {
 		lookAtShips(latA, lonA, latB, lonB)
-		time.Sleep(2 * 60 * time.Second)
+		time.Sleep(sleepSecs)
 	}
 }
 
 // scanPlanet() continually scans the entire planet for heretofore unseen ships.
-func scanPlanet() {
+func scanPlanet(sleepSecs time.Duration) {
 	for {
 		step := 10
 		lonA := float64(rand.Intn(360-step) - 180)
@@ -471,12 +472,12 @@ func scanPlanet() {
 			}
 		}
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(sleepSecs)
 	}
 }
 
 // tides() looks up instantaneous tide data for a given NOAA station.
-func tides() {
+func tides(sleepSecs time.Duration) {
 	reading := database.NoaaDatum{
 		Station: "9414290",
 		Product: "water_level",
@@ -500,12 +501,12 @@ func tides() {
 		reading.S = data["s"].(string)
 		reading.Flags = data["f"].(string)
 		fmt.Println("Reading:", reading)
-		time.Sleep(10 * 60 * time.Second)
+		time.Sleep(sleepSecs)
 	}
 }
 
 // airGap() looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
-func airGap() {
+func airGap(sleepSecs time.Duration) {
 	reading := database.NoaaDatum{
 		Station: "9414304",
 		Product: "air_gap",
@@ -529,12 +530,12 @@ func airGap() {
 		reading.S = data["s"].(string)
 		reading.Flags = data["f"].(string)
 		fmt.Println("Air gap:", reading)
-		time.Sleep(10 * 60 * time.Second)
+		time.Sleep(sleepSecs)
 	}
 }
 
 // dbStats() prints interesting statistics about the size of the database.
-func dbStats() {
+func dbStats(sleepSecs time.Duration) {
 	tables := []string{"ships", "sightings"}
 
 	for {
@@ -547,7 +548,7 @@ func dbStats() {
 		}
 		msg += "##"
 		fmt.Println(msg)
-		time.Sleep(10 * 60 * time.Second)
+		time.Sleep(sleepSecs)
 	}
 }
 
@@ -569,12 +570,12 @@ func main() {
 	database.Open()
 	defer database.Close()
 
-	// go scanNearby()
-	go scanAptVisible()
-	go scanPlanet()
-	go tides()
-	go airGap()
-	go dbStats()
+	// go scanNearby(5 * 60 * time.Second)
+	go scanAptVisible(2 * 60 * time.Second)
+	go scanPlanet(2 * 60 * time.Second)
+	go tides(10 * 60 * time.Second)
+	go airGap(10 * 60 * time.Second)
+	go dbStats(10 * 60 * time.Second)
 
 	for {
 		time.Sleep(3 * 60 * time.Second)
