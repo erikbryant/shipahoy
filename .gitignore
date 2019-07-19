@@ -1,3 +1,9 @@
+# Go profile
+profile
+
+# The executable
+ship_ahoy
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
