@@ -7,6 +7,9 @@ package main
 // $ go get github.com/faiface/beep/mp3
 // $ go get github.com/faiface/beep/wav
 // $ go get github.com/faiface/beep/speaker
+//
+// $ go get github.com/erikbryant/aes
+// $ go get github.com/erikbryant/web
 
 import (
 	"./database"
@@ -19,6 +22,7 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"runtime/pprof"
@@ -209,47 +213,79 @@ func alert(details database.Ship, url string) {
 	}
 }
 
-// getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
-func getShipDetails(mmsi string, ais int) (database.Ship, bool) {
-	var (
-		length int64
-		beam   int64
-	)
+// directLink builds a link to details about a given ship.
+func directLink(name, imo, mmsi string) string {
+	n := strings.ReplaceAll(name, " ", "-")
+	n = strings.ToUpper(n)
+	return ("https://www.vesselfinder.com/vessels/" + n + "-IMO-" + imo + "-MMSI-" + mmsi)
+}
 
+// getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
+func getShipDetails(mmsi string, name string) (database.Ship, bool) {
 	details, ok := database.LookupShip(mmsi)
 	if ok {
 		return details, true
 	}
 
-	mmsiURL := "https://www.vesselfinder.com/api/pub/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
+	mmsiURL := "https://www.vesselfinder.com/api/pub/click/" + mmsi
 	response, err := web.RequestJSON(mmsiURL)
 	if err != nil || response == nil {
 		return details, false
 	}
 
+	// Example response
+	//
+	// https://www.vesselfinder.com/api/pub/click/367003250
+	// {
+	// 	".ns":0,
+	// 	"a2":"us",
+	// 	"al":19,
+	// 	"aw":8,
+	// 	"country":"USA",
+	// 	"cu":246.7,
+	// 	"dest":"FALSE RIVER",
+	// 	"draught":33,
+	// 	"dw":0,
+	// 	"etaTS":1588620600,
+	// 	"gt":0,
+	// 	"imo":0,
+	// 	"lc.":0,
+	// 	"m9":0,
+	// 	"name":"SARAH REED",
+	// 	"pic":"0-367003250-cf317c76a96fd9b9f5ae4679c64bd065",
+	// 	"r":2,
+	// 	"sc.":0,
+	// 	"sl":false,
+	// 	"ss":0.1,
+	// 	"ts":1587883051
+	// 	"type":"Towing vessel",
+	// 	"y":0,
+	// }
+
 	details.MMSI = mmsi
 	details.IMO = web.ToString(response["imo"])
 	details.Name = web.ToString(response["name"])
-	details.AIS = ais
-	details.Type = web.ToString(response["type"])
-	details.SAR = response["sar"].(bool)
-	details.ID = web.ToString(response["__id"])
-	details.VO = web.ToInt(response["vo"])
-	details.FF = response["ff"].(bool)
-	details.DirectLink = web.ToString(response["direct_link"])
-	details.Draught = web.ToFloat64(response["draught"])
-	details.Year = web.ToInt(response["year"])
-	details.GT = web.ToInt(response["gt"])
-	details.Sizes = web.ToString(response["sizes"])
-	details.DW = web.ToInt(response["dw"])
-
-	sizes := strings.Split(details.Sizes, " ")
-	if len(sizes) == 4 && sizes[1] == "x" && sizes[3] == "m" {
-		length, _ = strconv.ParseInt(sizes[0], 10, 64)
-		beam, _ = strconv.ParseInt(sizes[2], 10, 64)
+	if details.Name == details.MMSI {
+		// Lots of ships in their db have just the mmsi in the name field
+		details.Name = name
 	}
-	details.Length = int(length)
-	details.Beam = int(beam)
+	details.Type = web.ToString(response["type"])
+	details.GT = web.ToInt(response["gt"])
+	details.DW = web.ToInt(response["dw"])
+	details.DirectLink = directLink(details.Name, details.IMO, mmsi)
+	details.Draught = web.ToFloat64(response["draught"]) / 10
+	details.Year = web.ToInt(response["y"])
+	details.Length = web.ToInt(response["al"])
+	details.Beam = web.ToInt(response["aw"])
+
+	// TODO: Fields that are gone. Remove these from the db model.
+	// details.SAR = response["sar"].(bool)
+	// details.ID = web.ToString(response["__id"])
+	// details.VO = web.ToInt(response["vo"])
+	// details.FF = response["ff"].(bool)
+
+	// TODO: Fields to add to the db model.
+	// details.country = web.ToString(response["country"])
 
 	fmt.Printf("Found: %s %-25s %s\n", details.MMSI, details.Name, decodeMmsi(details.MMSI))
 	database.SaveShip(details)
@@ -296,45 +332,91 @@ func visibleFromApt(lat, lon float64) bool {
 	return true
 }
 
+// getUInt16
+func getUInt16(buf string) uint16 {
+	return uint16(buf[0]) << 8 | uint16(buf[1])
+}
+
+// getInt32
+func getInt32(buf string) int32 {
+	return int32(buf[0]) << 24 | int32(buf[1]) << 16 | int32(buf[2]) << 8 | int32(buf[1])
+}
+
 // shipsInRegion() returns the ships found in a given lat/lon area via a channel.
 func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 	defer close(c)
 
-	latAs := strconv.FormatFloat(latA, 'f', 8, 64)
-	lonAs := strconv.FormatFloat(lonA, 'f', 8, 64)
-	latBs := strconv.FormatFloat(latB, 'f', 8, 64)
-	lonBs := strconv.FormatFloat(lonB, 'f', 8, 64)
+	// Convert to minutes and trunc after 4 decimal places
+	latAs := strconv.Itoa(int(math.Trunc(latA * 600000)))
+	lonAs := strconv.Itoa(int(math.Trunc(lonA * 600000)))
+	latBs := strconv.Itoa(int(math.Trunc(latB * 600000)))
+	lonBs := strconv.Itoa(int(math.Trunc(lonB * 600000)))
 
-	url := "https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
+	url := "https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1"
 
 	region := web.Request(url)
-	if len(region) < 10 {
+	if len(region) < 4 || region[0:4] != "CECP" {
+		fmt.Println("Unexpected data returned from web.Request(): ", region)
 		return
 	}
 
-	ships := strings.Split(region, "\n")
-	for _, ship := range ships {
-		fields := strings.Split(ship, "\t")
-		// Skip the trailing line with its magic number.
-		if len(fields) < 2 {
-			continue
-		}
+	// Skip over the "CECP" magic bytes
+	region = region[4:]
 
-		// https://api.vesselfinder.com/docs/response-ais.html
-		lat, _ := strconv.ParseFloat(fields[0], 64)
-		lat /= 600000.0
-		lon, _ := strconv.ParseFloat(fields[1], 64)
-		lon /= 600000.0
-		shipCourse, _ := strconv.ParseFloat(fields[2], 64)
-		shipCourse /= 10.0
-		speed, _ := strconv.ParseFloat(fields[3], 64)
-		speed /= 10.0 // SOG
-		ais, _ := strconv.ParseInt(fields[4], 10, 64)
-		mmsi := fields[5]
-		// name := fields[6]
-		// unknown, _ := strconv.ParseInt(fields[7], 10, 64)
+	// Parse each ship from the list. The list is a binary structure containing:
+	//   ??
+	//   mmsi
+	//   lat
+	//   lon
+	//   len(name)
+	//   name
 
-		details, ok := getShipDetails(mmsi, int(ais))
+	for i := 0; i < len(region); {
+		// Until we can figure out the contents of the
+		// first two bytes, skip over them
+		i += 2
+
+		//  111111
+		//  54321098 76543210
+		//  --------+--------
+		// |OOGGGGGG|zzzz    |
+		//  --------+--------
+		// V := getUInt16(region[i:i+2])
+		// i += 2
+		// z := (V & 0xF0) >> 4
+		// G := (V & 0x3F00) >> 8
+		// O := 1
+		// if V & 0xC000 == 0xC000 {
+		// 	O = 2
+		// }
+		// if V & 0xC000 == 0x8000 {
+		// 	O = 0
+		// }
+		// fmt.Println("V =", V)
+		// fmt.Println("z =", z)
+		// fmt.Println("G =", G)
+		// fmt.Println("O =", O)
+
+		mmsi := strconv.Itoa(int(getInt32(region[i:i+4])))
+		i += 4
+
+		lat := float64(getInt32(region[i:i+4])) / 600000.0
+		i += 4
+
+		lon := float64(getInt32(region[i:i+4])) / 600000.0
+		i += 4
+
+		nameLen := int(region[i])
+		i++
+
+		name := region[i:i+nameLen]
+		i += nameLen
+
+		// TODO: Figure out how to get this information.
+		shipCourse := 0.0
+		speed := 0.0
+
+		details, ok := getShipDetails(mmsi, name)
 		if !ok {
 			continue
 		}
