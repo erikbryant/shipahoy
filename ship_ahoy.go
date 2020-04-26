@@ -221,7 +221,7 @@ func getShipDetails(mmsi string, ais int) (database.Ship, bool) {
 		return details, true
 	}
 
-	mmsiURL := "https://www.vesselfinder.com/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
+	mmsiURL := "https://www.vesselfinder.com/api/pub/clickinfo?mmsi=" + mmsi + "&rn=64229.85898456942&_=1524694015667"
 	response, err := web.RequestJSON(mmsiURL)
 	if err != nil || response == nil {
 		return details, false
@@ -305,7 +305,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 	latBs := strconv.FormatFloat(latB, 'f', 8, 64)
 	lonBs := strconv.FormatFloat(lonB, 'f', 8, 64)
 
-	url := "https://www.vesselfinder.com/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
+	url := "https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1&ref=35521.28976544603&pv=6"
 
 	region := web.Request(url)
 	if len(region) < 10 {
