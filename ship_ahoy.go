@@ -334,12 +334,12 @@ func visibleFromApt(lat, lon float64) bool {
 
 // getUInt16
 func getUInt16(buf string) uint16 {
-	return uint16(buf[0]) << 8 | uint16(buf[1])
+	return uint16(buf[0])<<8 | uint16(buf[1])
 }
 
 // getInt32
 func getInt32(buf string) int32 {
-	return int32(buf[0]) << 24 | int32(buf[1]) << 16 | int32(buf[2]) << 8 | int32(buf[1])
+	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[1])
 }
 
 // shipsInRegion() returns the ships found in a given lat/lon area via a channel.
@@ -397,7 +397,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		// fmt.Println("G =", G)
 		// fmt.Println("O =", O)
 
-		mmsi := strconv.Itoa(int(getInt32(region[i:i+4])))
+		mmsi := strconv.Itoa(int(getInt32(region[i : i+4])))
 		i += 4
 
 		lat := float64(getInt32(region[i:i+4])) / 600000.0
@@ -409,7 +409,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		nameLen := int(region[i])
 		i++
 
-		name := region[i:i+nameLen]
+		name := region[i : i+nameLen]
 		i += nameLen
 
 		// TODO: Figure out how to get this information.
