@@ -41,15 +41,15 @@ var (
 	myLat float64
 	myLon float64
 
-	uninterestingAIS = map[int]bool{
-		0:  true, // Unknown
-		6:  true, // Passenger
-		31: true, // Tug
-		36: true, // Sailing vessel
-		37: true, // Pleasure craft
-		52: true, // Tug
-		60: true, // Passenger ship
-		69: true, // Passenger ship
+	uninterestingAIS = map[string]bool{
+		// "Unknown":  true, // Unknown
+		// 6:  true, // Passenger
+		// 31: true, // Tug
+		// 36: true, // Sailing vessel
+		// 37: true, // Pleasure craft
+		// 52: true, // Tug
+		// 60: true, // Passenger ship
+		// 69: true, // Passenger ship
 	}
 
 	uninterestingMMSI = map[string]bool{
@@ -232,43 +232,44 @@ func getShipDetails(mmsi string, name string) (database.Ship, bool) {
 	if err != nil || response == nil {
 		return details, false
 	}
+	if web.ToString(response["name"]) != name {
+		// We have an invalid MMSI. Abort.
+		fmt.Println("mmsi not found:", mmsi)
+		return details, false
+	}
 
 	// Example response
 	//
 	// https://www.vesselfinder.com/api/pub/click/367003250
 	// {
-	// 	".ns":0,
-	// 	"a2":"us",
-	// 	"al":19,
-	// 	"aw":8,
-	// 	"country":"USA",
-	// 	"cu":246.7,
-	// 	"dest":"FALSE RIVER",
-	// 	"draught":33,
-	// 	"dw":0,
-	// 	"etaTS":1588620600,
-	// 	"gt":0,
-	// 	"imo":0,
-	// 	"lc.":0,
-	// 	"m9":0,
-	// 	"name":"SARAH REED",
+	// 	".ns":0,                 //
+	// 	"a2":"us",               // country of register (abbrv)
+	// 	"al":19,                 // length
+	// 	"aw":8,                  // width
+	// 	"country":"USA",         // country of register
+	// 	"cu":246.7,              // course
+	// 	"dest":"FALSE RIVER",    // destination
+	// 	"draught":33,            // draught
+	// 	"dw":0,                  // deadweight(?)
+	// 	"etaTS":1588620600,      // ETA timestamp
+	// 	"gt":0,                  // gross tonnage
+	// 	"imo":0,                 // imo number
+	// 	"lc.":0,                 //
+	// 	"m9":0,                  //
+	// 	"name":"SARAH REED",     // name
 	// 	"pic":"0-367003250-cf317c76a96fd9b9f5ae4679c64bd065",
-	// 	"r":2,
-	// 	"sc.":0,
-	// 	"sl":false,
-	// 	"ss":0.1,
-	// 	"ts":1587883051
-	// 	"type":"Towing vessel",
-	// 	"y":0,
+	// 	"r":2,                   //
+	// 	"sc.":0,                 //
+	// 	"sl":false,              //
+	// 	"ss":0.1,                // speed (knots)
+	// 	"ts":1587883051          // timestamp (of position received?)
+	// 	"type":"Towing vessel",  // AIS type
+	// 	"y":0,                   // year built
 	// }
 
 	details.MMSI = mmsi
 	details.IMO = web.ToString(response["imo"])
 	details.Name = web.ToString(response["name"])
-	if details.Name == details.MMSI {
-		// Lots of ships in their db have just the mmsi in the name field
-		details.Name = name
-	}
 	details.Type = web.ToString(response["type"])
 	details.GT = web.ToInt(response["gt"])
 	details.DW = web.ToInt(response["dw"])
@@ -277,6 +278,8 @@ func getShipDetails(mmsi string, name string) (database.Ship, bool) {
 	details.Year = web.ToInt(response["y"])
 	details.Length = web.ToInt(response["al"])
 	details.Beam = web.ToInt(response["aw"])
+	details.ShipCourse = web.ToFloat64(response["cu"])
+	details.Speed = web.ToFloat64(response["ss"])
 
 	// TODO: Fields that are gone. Remove these from the db model.
 	// details.SAR = response["sar"].(bool)
@@ -339,7 +342,7 @@ func getUInt16(buf string) uint16 {
 
 // getInt32
 func getInt32(buf string) int32 {
-	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[1])
+	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3])
 }
 
 // shipsInRegion() returns the ships found in a given lat/lon area via a channel.
@@ -412,10 +415,6 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		name := region[i : i+nameLen]
 		i += nameLen
 
-		// TODO: Figure out how to get this information.
-		shipCourse := 0.0
-		speed := 0.0
-
 		details, ok := getShipDetails(mmsi, name)
 		if !ok {
 			continue
@@ -423,8 +422,6 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 
 		details.Lat = lat
 		details.Lon = lon
-		details.ShipCourse = shipCourse
-		details.Speed = speed
 
 		// Push 'details' to channel.
 		c <- details
@@ -452,7 +449,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		}
 
 		// Skip 'uninteresting' ships.
-		if uninterestingAIS[details.AIS] || uninterestingMMSI[details.MMSI] {
+		if uninterestingAIS[details.Type] || uninterestingMMSI[details.MMSI] {
 			continue
 		}
 

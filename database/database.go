@@ -14,17 +14,17 @@ type Ship struct {
 	MMSI       string
 	IMO        string
 	Name       string
-	AIS        int
+	AIS        int       // deprecated
 	Type       string
 	SAR        bool
-	ID         string
-	VO         int
-	FF         bool
+	ID         string    // deprecated
+	VO         int       // deprecated
+	FF         bool      // deprecated
 	DirectLink string
 	Draught    float64
 	Year       int
 	GT         int
-	Sizes      string
+	Sizes      string    // deprecated
 	Length     int
 	Beam       int
 	DW         int
