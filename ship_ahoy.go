@@ -220,14 +220,18 @@ func directLink(name, imo, mmsi string) string {
 func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, bool) {
 	details, seen := database.LookupShip(mmsi)
 
+	if len(mmsi) != 9 {
+		// We have an invalid MMSI. Abort.
+		return details, false
+	}
+
 	mmsiURL := "https://www.vesselfinder.com/api/pub/click/" + mmsi
 	response, err := web.RequestJSON(mmsiURL)
 	if err != nil || response == nil {
 		return details, false
 	}
 	if web.ToString(response["name"]) != name {
-		// We have an invalid MMSI. Abort.
-		fmt.Println("mmsi not found:", mmsi, name, "!=", response["name"])
+		// We have a non-existant MMSI. Abort.
 		return details, false
 	}
 
