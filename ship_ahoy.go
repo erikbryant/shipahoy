@@ -217,7 +217,7 @@ func directLink(name, imo, mmsi string) string {
 }
 
 // getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
-func getShipDetails(mmsi string, name string) (database.Ship, bool) {
+func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, bool) {
 	details, seen := database.LookupShip(mmsi)
 
 	mmsiURL := "https://www.vesselfinder.com/api/pub/click/" + mmsi
@@ -227,7 +227,7 @@ func getShipDetails(mmsi string, name string) (database.Ship, bool) {
 	}
 	if web.ToString(response["name"]) != name {
 		// We have an invalid MMSI. Abort.
-		fmt.Println("mmsi not found:", mmsi, name)
+		fmt.Println("mmsi not found:", mmsi, name, "!=", response["name"])
 		return details, false
 	}
 
@@ -261,6 +261,8 @@ func getShipDetails(mmsi string, name string) (database.Ship, bool) {
 	// }
 
 	details.MMSI = mmsi
+	details.Lat = lat
+	details.Lon = lon
 	details.IMO = web.ToString(response["imo"])
 	details.Name = web.ToString(response["name"])
 	details.Type = web.ToString(response["type"])
@@ -402,13 +404,10 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		name := region[i : i+nameLen]
 		i += nameLen
 
-		details, ok := getShipDetails(mmsi, name)
+		details, ok := getShipDetails(mmsi, name, lat, lon)
 		if !ok {
 			continue
 		}
-
-		details.Lat = lat
-		details.Lon = lon
 
 		// Push 'details' to channel.
 		c <- details
