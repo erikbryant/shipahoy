@@ -42,14 +42,10 @@ var (
 	myLon float64
 
 	uninterestingAIS = map[string]bool{
-		// "Unknown":  true, // Unknown
-		// 6:  true, // Passenger
-		// 31: true, // Tug
-		// 36: true, // Sailing vessel
-		// 37: true, // Pleasure craft
-		// 52: true, // Tug
-		// 60: true, // Passenger ship
-		// 69: true, // Passenger ship
+		"Fishing vessel": true,
+		"Pleasure craft": true,
+		"Sailing vessel": true,
+		"Tug":            true,
 	}
 
 	uninterestingMMSI = map[string]bool{
@@ -222,10 +218,7 @@ func directLink(name, imo, mmsi string) string {
 
 // getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
 func getShipDetails(mmsi string, name string) (database.Ship, bool) {
-	details, ok := database.LookupShip(mmsi)
-	if ok {
-		return details, true
-	}
+	details, seen := database.LookupShip(mmsi)
 
 	mmsiURL := "https://www.vesselfinder.com/api/pub/click/" + mmsi
 	response, err := web.RequestJSON(mmsiURL)
@@ -234,7 +227,7 @@ func getShipDetails(mmsi string, name string) (database.Ship, bool) {
 	}
 	if web.ToString(response["name"]) != name {
 		// We have an invalid MMSI. Abort.
-		fmt.Println("mmsi not found:", mmsi)
+		fmt.Println("mmsi not found:", mmsi, name)
 		return details, false
 	}
 
@@ -281,16 +274,10 @@ func getShipDetails(mmsi string, name string) (database.Ship, bool) {
 	details.ShipCourse = web.ToFloat64(response["cu"])
 	details.Speed = web.ToFloat64(response["ss"])
 
-	// TODO: Fields that are gone. Remove these from the db model.
-	// details.SAR = response["sar"].(bool)
-	// details.ID = web.ToString(response["__id"])
-	// details.VO = web.ToInt(response["vo"])
-	// details.FF = response["ff"].(bool)
+	if !seen {
+		fmt.Printf("Found: %s %-25s %s\n", details.MMSI, details.Name, decodeMmsi(details.MMSI))
+	}
 
-	// TODO: Fields to add to the db model.
-	// details.country = web.ToString(response["country"])
-
-	fmt.Printf("Found: %s %-25s %s\n", details.MMSI, details.Name, decodeMmsi(details.MMSI))
 	database.SaveShip(details)
 
 	return details, true
