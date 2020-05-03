@@ -43,9 +43,12 @@ var (
 
 	uninterestingAIS = map[string]bool{
 		"Fishing vessel": true,
+		"Passenger ship": true,
 		"Pleasure craft": true,
 		"Sailing vessel": true,
+		"Towing vessel":  true,
 		"Tug":            true,
+		"Unknown":        true,
 	}
 
 	uninterestingMMSI = map[string]bool{
@@ -61,6 +64,8 @@ var (
 		"338236492": true, // Round Midnight
 		"367517270": true, // Tesa
 		"367533950": true, // Sausalito Bmpress
+		"366831930": true, // Millennium
+		"366864140": true, // Naiad
 	}
 )
 
@@ -281,7 +286,7 @@ func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, 
 	details.Speed = web.ToFloat64(response["ss"])
 
 	if !seen {
-		fmt.Printf("Found: %s %-25s %s\n", details.MMSI, details.Name, decodeMmsi(details.MMSI))
+		// fmt.Printf("Found: %s %-25s %s\n", details.MMSI, details.Name, decodeMmsi(details.MMSI))
 	}
 
 	database.SaveShip(details)
@@ -404,6 +409,11 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 
 		nameLen := int(region[i])
 		i++
+
+		if i+nameLen > len(region) {
+			fmt.Println("Ran off of end of data:", mmsi, nameLen, region[i:])
+			break
+		}
 
 		name := region[i : i+nameLen]
 		i += nameLen
@@ -556,6 +566,10 @@ func tides(sleepSecs time.Duration) {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
+		// Sleep at the start of the loop to avoid spamming the API
+		// in the case where the API is returning errors
+		time.Sleep(sleepSecs)
+
 		response, err := web.RequestJSON(url)
 		if err != nil {
 			fmt.Println("Unable to get tide data: ", err)
@@ -570,7 +584,6 @@ func tides(sleepSecs time.Duration) {
 		reading.S = data["s"].(string)
 		reading.Flags = data["f"].(string)
 		fmt.Println("Reading:", reading)
-		time.Sleep(sleepSecs)
 	}
 }
 
@@ -585,6 +598,10 @@ func airGap(sleepSecs time.Duration) {
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
 	for {
+		// Sleep at the start of the loop to avoid spamming the API
+		// in the case where the API is returning errors
+		time.Sleep(sleepSecs)
+
 		response, err := web.RequestJSON(url)
 		if err != nil {
 			fmt.Println("Unable to get air gap data: ", err)
@@ -599,7 +616,6 @@ func airGap(sleepSecs time.Duration) {
 		reading.S = data["s"].(string)
 		reading.Flags = data["f"].(string)
 		fmt.Println("Air gap:", reading)
-		time.Sleep(sleepSecs)
 	}
 }
 
