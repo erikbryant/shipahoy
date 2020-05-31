@@ -203,8 +203,8 @@ func play(file string, wavFile bool) {
 
 // alert() prints a message and plays an alert tone.
 func alert(details database.Ship) {
-	url := "https://www.vesselfinder.com/?mmsi=" + details.MMSI + "&zoom=13"
-	fmt.Printf("\nShip Ahoy!     %s     %v - %s\n\n", url, details, decodeMmsi(details.MMSI))
+	fmt.Printf("\nShip Ahoy!     https://www.vesselfinder.com/?mmsi=%s&zoom=13     %v - %s\n\n",
+		details.MMSI, details, decodeMmsi(details.MMSI))
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
 		go play("meep.wav", true)
