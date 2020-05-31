@@ -76,8 +76,6 @@ func init() {
 // MyGeo returns the lat/lon pair of the location of the computer running this program.
 func MyGeo() (lat, lon float64) {
 	// myIP := web.Request("http://ifconfig.co/ip") <-- site has malware
-	// myIP := web.Request("https://api.ipify.org")
-	// myIP = strings.TrimSpace(myIP)
 	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key=" + geoAPIKey)
 	if err != nil {
 		fmt.Println("ERROR: Unable to get geo location. Assuming you are home. Message:", err)
@@ -204,7 +202,8 @@ func play(file string, wavFile bool) {
 }
 
 // alert() prints a message and plays an alert tone.
-func alert(details database.Ship, url string) {
+func alert(details database.Ship) {
+	url := "https://www.vesselfinder.com/?mmsi=" + details.MMSI + "&zoom=13"
 	fmt.Printf("\nShip Ahoy!     %s     %v - %s\n\n", url, details, decodeMmsi(details.MMSI))
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
@@ -448,7 +447,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 			continue
 		}
 
-		// Skip 'uninteresting' ships.
+		// Skip uninteresting ships.
 		if uninterestingAIS[details.Type] || uninterestingMMSI[details.MMSI] {
 			continue
 		}
@@ -469,8 +468,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 
 		// We have passed all the tests! Save and alert.
 		database.SaveSighting(details, myLat, myLon)
-		url := "https://www.vesselfinder.com/?mmsi=" + details.MMSI + "&zoom=13"
-		alert(details, url)
+		alert(details)
 	}
 }
 
@@ -493,7 +491,7 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 // scanNearby() continually scans for ships within a given radius of this computer.
 func scanNearby(sleepSecs time.Duration) {
 	// TODO: If the bounding region of 'nearby' overlaps the bounding
-	// region of scan_apt_visible then do not scan 'nearby',
+	// region of scan_apt_visible then do not scan 'nearby'.
 	lat, lon := MyGeo()
 	latA, lonA, latB, lonB := box(lat, lon, 30)
 
@@ -531,6 +529,7 @@ func scanAptVisible(sleepSecs time.Duration) {
 // scanPlanet() continually scans the entire planet for heretofore unseen ships.
 func scanPlanet(sleepSecs time.Duration) {
 	for {
+		// Pick a random lat/lon box on the surface of the planet.
 		step := 10
 		lonA := float64(rand.Intn(360-step) - 180)
 		latA := float64(rand.Intn(360-step) - 180)
@@ -555,6 +554,24 @@ func scanPlanet(sleepSecs time.Duration) {
 	}
 }
 
+// noaaReading() reads one datum from a given NOAA station.
+func noaaReading(url string, reading *database.NoaaDatum) bool {
+	response, err := web.RequestJSON(url)
+	if err != nil {
+		fmt.Println("Error getting data: ", err)
+		return false
+	}
+	if response["error"] != nil {
+		fmt.Println("Error reading data: ", response["error"])
+		return false
+	}
+	data := response["data"].([]interface{})[0].(map[string]interface{})
+	reading.Value = data["v"].(string)
+	reading.S = data["s"].(string)
+	reading.Flags = data["f"].(string)
+	return true
+}
+
 // tides() looks up instantaneous tide data for a given NOAA station.
 func tides(sleepSecs time.Duration) {
 	reading := database.NoaaDatum{
@@ -570,19 +587,10 @@ func tides(sleepSecs time.Duration) {
 		// in the case where the API is returning errors
 		time.Sleep(sleepSecs)
 
-		response, err := web.RequestJSON(url)
-		if err != nil {
-			fmt.Println("Unable to get tide data: ", err)
+		ok := noaaReading(url, &reading)
+		if !ok {
 			continue
 		}
-		if response["error"] != nil {
-			fmt.Println("Unable to get tide data: ", response["error"])
-			continue
-		}
-		data := response["data"].([]interface{})[0].(map[string]interface{})
-		reading.Value = data["v"].(string)
-		reading.S = data["s"].(string)
-		reading.Flags = data["f"].(string)
 		fmt.Println("Reading:", reading)
 	}
 }
@@ -602,20 +610,11 @@ func airGap(sleepSecs time.Duration) {
 		// in the case where the API is returning errors
 		time.Sleep(sleepSecs)
 
-		response, err := web.RequestJSON(url)
-		if err != nil {
-			fmt.Println("Unable to get air gap data: ", err)
+		ok := noaaReading(url, &reading)
+		if !ok {
 			continue
 		}
-		if response["error"] != nil {
-			// fmt.Println("Unable to get air gap data: ", response["error"])
-			continue
-		}
-		data := response["data"].([]interface{})[0].(map[string]interface{})
-		reading.Value = data["v"].(string)
-		reading.S = data["s"].(string)
-		reading.Flags = data["f"].(string)
-		fmt.Println("Air gap:", reading)
+		fmt.Println("Reading:", reading)
 	}
 }
 
