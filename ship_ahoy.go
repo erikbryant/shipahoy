@@ -41,6 +41,10 @@ var (
 	myLat float64
 	myLon float64
 
+	interestingMMSI = map[string]bool{
+		"338691000": true, // Matthew Turner
+	}
+
 	uninterestingAIS = map[string]bool{
 		"Fishing vessel": true,
 		"Passenger ship": true,
@@ -447,9 +451,12 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 			continue
 		}
 
-		// Skip uninteresting ships.
-		if uninterestingAIS[details.Type] || uninterestingMMSI[details.MMSI] {
-			continue
+		// Always show interesting ships.
+		if !interestingMMSI[details.MMSI] {
+			// Skip uninteresting ships.
+			if uninterestingAIS[details.Type] || uninterestingMMSI[details.MMSI] {
+				continue
+			}
 		}
 
 		// Only alert for ships visible from our apartment.
