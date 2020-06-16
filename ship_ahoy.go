@@ -48,6 +48,7 @@ var (
 	uninterestingAIS = map[string]bool{
 		"Fishing vessel": true,
 		"Passenger ship": true,
+		"Passenger Ship": true,
 		"Pleasure craft": true,
 		"Sailing vessel": true,
 		"Towing vessel":  true,
