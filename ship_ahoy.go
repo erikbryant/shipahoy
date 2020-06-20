@@ -12,16 +12,17 @@ package main
 // $ go get github.com/erikbryant/web
 
 import (
-	"./database"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/erikbryant/aes"
+	"github.com/erikbryant/ship_ahoy/database"
 	"github.com/erikbryant/web"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
+	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"math"
 	"math/rand"
