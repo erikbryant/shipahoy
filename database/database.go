@@ -14,27 +14,28 @@ type Ship struct {
 	MMSI       string
 	IMO        string
 	Name       string
-	AIS        int       // deprecated
+	AIS        int // not currently available
 	Type       string
 	SAR        bool
-	ID         string    // deprecated
-	VO         int       // deprecated
-	FF         bool      // deprecated
+	ID         string // deprecated
+	VO         int    // deprecated
+	FF         bool   // deprecated
 	DirectLink string
 	Draught    float64
 	Year       int
 	GT         int
-	Sizes      string    // deprecated
+	Sizes      string // deprecated
 	Length     int
 	Beam       int
 	DW         int
-	unknown    int // Unused.
+	unknown    int // unused
 
 	// Not stored in db ...
 	Lat        float64
 	Lon        float64
 	ShipCourse float64
 	Speed      float64
+	Sightings  int
 }
 
 // Sighting holds the relevant information about a ship sighting.
@@ -101,6 +102,8 @@ func LookupShip(mmsi string) (Ship, bool) {
 		return details, false
 	}
 
+	details.Sightings = CountSightings(details.MMSI)
+
 	return details, true
 }
 
@@ -156,6 +159,19 @@ func LookupLastSighting(details Ship) (timestamp int64) {
 
 	rows := db.QueryRow(sqlString)
 	err := rows.Scan(&timestamp)
+	if err != nil && err != sql.ErrNoRows {
+		fmt.Println("lookup_last_sighting Scan:", err)
+	}
+
+	return
+}
+
+// CountSightings() counts the number of times we have seen this ship.
+func CountSightings(mmsi string) (count int) {
+	sqlString := "SELECT COUNT(*) FROM sightings WHERE mmsi = " + mmsi
+
+	rows := db.QueryRow(sqlString)
+	err := rows.Scan(&count)
 	if err != nil && err != sql.ErrNoRows {
 		fmt.Println("lookup_last_sighting Scan:", err)
 	}
