@@ -13,6 +13,7 @@ package main
 
 import (
 	"./database"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/erikbryant/aes"
@@ -230,10 +231,19 @@ func play(file string, wavFile bool) {
 	<-playing
 }
 
+// prettify formats and prints the input.
+func prettify(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", " ")
+	return string(s)
+}
+
 // alert() prints a message and plays an alert tone.
 func alert(details database.Ship) {
-	fmt.Printf("\nShip Ahoy!     https://www.vesselfinder.com/?mmsi=%s&zoom=13     %v - %s\n\n",
-		details.MMSI, details, decodeMmsi(details.MMSI))
+	fmt.Printf(
+		"\nShip Ahoy!   %s\n%+v\n\n",
+		decodeMmsi(details.MMSI),
+		prettify(details),
+	)
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
 		go play("meep.wav", true)
