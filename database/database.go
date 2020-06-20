@@ -1,9 +1,14 @@
 package database
 
+//
+// Consumers of this package need to add this import line:
+//
+//	_ "github.com/go-sql-driver/mysql"
+//
+
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"time"
 )
@@ -64,6 +69,7 @@ var (
 	db *sql.DB
 )
 
+// Open opens a connection to the database.
 func Open() {
 	var err error
 
@@ -73,11 +79,12 @@ func Open() {
 	}
 }
 
+// Close closes the connection to the database opened by Open.
 func Close() {
 	db.Close()
 }
 
-// SaveShip() writes ship details to the database.
+// SaveShip writes ship details to the database.
 func SaveShip(details Ship) {
 	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, length, beam, dw ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
 
@@ -87,7 +94,7 @@ func SaveShip(details Ship) {
 	}
 }
 
-// LookupShip() reads ship details from the database.
+// LookupShip reads ship details from the database.
 func LookupShip(mmsi string) (Ship, bool) {
 	var details Ship
 
@@ -107,7 +114,7 @@ func LookupShip(mmsi string) (Ship, bool) {
 	return details, true
 }
 
-// LookupShipExists() is [hopefully] faster than loading the entire record like dbLookupShip() does.
+// LookupShipExists is [hopefully] faster than loading the entire record like dbLookupShip() does.
 func LookupShipExists(mmsi string) bool {
 	var exists int
 
@@ -125,7 +132,7 @@ func LookupShipExists(mmsi string) bool {
 	return exists == 1
 }
 
-// SaveSighting() writes the ship sighting details to the database.
+// SaveSighting writes the ship sighting details to the database.
 func SaveSighting(details Ship, myLat, myLon float64) {
 	sqlString := "INSERT IGNORE INTO sightings ( mmsi, ship_course, timestamp, lat, lon, my_lat, my_lon ) VALUES ( ?, ?, ?, ?, ?, ?, ?)"
 
@@ -135,7 +142,7 @@ func SaveSighting(details Ship, myLat, myLon float64) {
 	}
 }
 
-// LookupSighting() reads sighting details from the database.
+// LookupSighting reads sighting details from the database.
 func LookupSighting(details Ship) (Sighting, bool) {
 	var sighting Sighting
 
@@ -153,7 +160,7 @@ func LookupSighting(details Ship) (Sighting, bool) {
 	return sighting, true
 }
 
-// LookupLastSighting() is [hopefully] faster than dbLookupSighting() because it only queries the timestamp.
+// LookupLastSighting is [hopefully] faster than dbLookupSighting() because it only queries the timestamp.
 func LookupLastSighting(details Ship) (timestamp int64) {
 	sqlString := "SELECT timestamp FROM sightings WHERE mmsi = " + details.MMSI + " ORDER BY timestamp DESC LIMIT 1"
 
@@ -166,7 +173,7 @@ func LookupLastSighting(details Ship) (timestamp int64) {
 	return
 }
 
-// CountSightings() counts the number of times we have seen this ship.
+// CountSightings counts the number of times we have seen this ship.
 func CountSightings(mmsi string) (count int) {
 	sqlString := "SELECT COUNT(*) FROM sightings WHERE mmsi = " + mmsi
 
@@ -179,7 +186,7 @@ func CountSightings(mmsi string) (count int) {
 	return
 }
 
-// CountRows() returns the number of rows in the given table.
+// CountRows returns the number of rows in the given table.
 func CountRows(table string) (int64, bool) {
 	var count int64
 
