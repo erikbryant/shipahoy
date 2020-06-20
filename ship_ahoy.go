@@ -222,6 +222,12 @@ func alert(details database.Ship) {
 func directLink(name, imo, mmsi string) string {
 	n := strings.ReplaceAll(name, " ", "-")
 	n = strings.ToUpper(n)
+
+	// Some ship names have '/' in them. For instance, motor yachts
+	// sometimes have a 'M/Y' prefix. Rather than URL encode the slash,
+	// VesselFinder removes it. Do the same here.
+	n = strings.ReplaceAll(n, "/", "")
+
 	return ("https://www.vesselfinder.com/vessels/" + n + "-IMO-" + imo + "-MMSI-" + mmsi)
 }
 

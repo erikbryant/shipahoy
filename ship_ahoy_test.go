@@ -55,3 +55,22 @@ func TestBox(t *testing.T) {
 		}
 	}
 }
+
+func TestDirectLink(t *testing.T) {
+	testCases := []struct {
+		name     string
+		imo      string
+		mmsi     string
+		expected string
+	}{
+		{"CG Robert Ward", "0", "338926430", "https://www.vesselfinder.com/vessels/CG-ROBERT-WARD-IMO-0-MMSI-338926430"},
+		{"M/Y Saint Nicolas", "1008918", "319762000", "https://www.vesselfinder.com/vessels/MY-SAINT-NICOLAS-IMO-1008918-MMSI-319762000"},
+	}
+
+	for _, testCase := range testCases {
+		url := directLink(testCase.name, testCase.imo, testCase.mmsi)
+		if url != testCase.expected {
+			t.Errorf("ERROR: For %v, %v, %v expected %v, got %v", testCase.name, testCase.imo, testCase.mmsi, testCase.expected, url)
+		}
+	}
+}
