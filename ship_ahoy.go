@@ -25,6 +25,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"regexp"
 	"runtime/pprof"
 	"strconv"
 	"strings"
@@ -87,7 +88,7 @@ func MyGeo() (lat, lon float64) {
 		return 37.8007, -122.4097
 	}
 	if location["error"] != nil {
-		fmt.Println("ERROR: Unable to get geo location. Assuming you are home. Message:", location["error"])
+		fmt.Println("ERROR: Error getting geo location. Assuming you are home. Message:", location["error"])
 		return 37.8007, -122.4097
 	}
 	lat = location["latitude"].(float64)
@@ -95,8 +96,31 @@ func MyGeo() (lat, lon float64) {
 	return lat, lon
 }
 
+// validateMmsi() tests whether an MMSI is valid.
+func validateMmsi(mmsi string) error {
+	if len(mmsi) != 9 {
+		return fmt.Errorf("MMSI length != 9: %s", mmsi)
+	}
+
+	matched, err := regexp.MatchString("^[0-9]{9}$", mmsi)
+	if err != nil {
+		return err
+	}
+	if !matched {
+		return fmt.Errorf("Invalid MMSI found: %s", mmsi)
+	}
+
+	return nil
+}
+
 // decodeMmsi() returns a string describing the data encoded in the given MMSI.
 func decodeMmsi(mmsi string) string {
+	err := validateMmsi(mmsi)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+
 	msg := ""
 
 	// https://en.wikipedia.org/wiki/Maritime_Mobile_Service_Identity
@@ -220,13 +244,12 @@ func alert(details database.Ship) {
 
 // directLink builds a link to details about a given ship.
 func directLink(name, imo, mmsi string) string {
-	n := strings.ReplaceAll(name, " ", "-")
-	n = strings.ToUpper(n)
-
 	// Some ship names have '/' in them. For instance, motor yachts
 	// sometimes have a 'M/Y' prefix. Rather than URL encode the slash,
 	// VesselFinder removes it. Do the same here.
-	n = strings.ReplaceAll(n, "/", "")
+	n := strings.ReplaceAll(name, "/", "")
+	n = strings.ReplaceAll(n, " ", "-")
+	n = strings.ToUpper(n)
 
 	return ("https://www.vesselfinder.com/vessels/" + n + "-IMO-" + imo + "-MMSI-" + mmsi)
 }
@@ -235,8 +258,9 @@ func directLink(name, imo, mmsi string) string {
 func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, bool) {
 	details, seen := database.LookupShip(mmsi)
 
-	if len(mmsi) != 9 {
-		// We have an invalid MMSI. Abort.
+	err := validateMmsi(mmsi)
+	if err != nil {
+		fmt.Println(err)
 		return details, false
 	}
 
@@ -343,14 +367,20 @@ func visibleFromApt(lat, lon float64) bool {
 	return true
 }
 
-// getUInt16
-func getUInt16(buf string) uint16 {
-	return uint16(buf[0])<<8 | uint16(buf[1])
+// getUInt16 converts an array of two bytes to a unit16.
+func getUInt16(buf string) (uint16, error) {
+	if len(buf) != 2 {
+		return 0, fmt.Errorf("String length must be exactly 2. Found: %v", len(buf))
+	}
+	return uint16(buf[0])<<8 | uint16(buf[1]), nil
 }
 
-// getInt32
-func getInt32(buf string) int32 {
-	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3])
+// getInt32 converts an array of four bytes to an int32.
+func getInt32(buf string) (int32, error) {
+	if len(buf) != 4 {
+		return 0, fmt.Errorf("String length must be exactly 4. Found: %v", len(buf))
+	}
+	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3]), nil
 }
 
 // shipsInRegion() returns the ships found in a given lat/lon area via a channel.
@@ -408,13 +438,16 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		// fmt.Println("G =", G)
 		// fmt.Println("O =", O)
 
-		mmsi := strconv.Itoa(int(getInt32(region[i : i+4])))
+		val, _ := getInt32(region[i : i+4])
+		mmsi := strconv.Itoa(int(val))
 		i += 4
 
-		lat := float64(getInt32(region[i:i+4])) / 600000.0
+		val, _ = getInt32(region[i : i+4])
+		lat := float64(val) / 600000.0
 		i += 4
 
-		lon := float64(getInt32(region[i:i+4])) / 600000.0
+		val, _ = getInt32(region[i : i+4])
+		lon := float64(val) / 600000.0
 		i += 4
 
 		nameLen := int(region[i])
