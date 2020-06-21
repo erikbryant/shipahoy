@@ -450,7 +450,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		// fmt.Println("O =", O)
 
 		val, _ := getInt32(region[i : i+4])
-		mmsi := strconv.Itoa(int(val))
+		mmsi := fmt.Sprintf("%09d", val)
 		i += 4
 
 		val, _ = getInt32(region[i : i+4])
