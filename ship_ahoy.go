@@ -424,10 +424,10 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 	//   name
 
 	for i := 0; i < len(region); {
-		// Until we can figure out the contents of the
-		// first two bytes, skip over them
-		i += 2
-
+		// I do not know what these values represent. The VesselFinder
+		// website unpacks them and names them thusly, but gives no
+		// hint as to their meaning.
+		//
 		//  111111
 		//  54321098 76543210
 		//  --------+--------
@@ -444,20 +444,35 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		// if V & 0xC000 == 0x8000 {
 		// 	O = 0
 		// }
-		// fmt.Println("V =", V)
 		// fmt.Println("z =", z)
 		// fmt.Println("G =", G)
 		// fmt.Println("O =", O)
+		//
+		// Until we can figure out the contents of these first two
+		// bytes, skip over them.
+		i += 2
 
-		val, _ := getInt32(region[i : i+4])
+		val, err := getInt32(region[i : i+4])
+		if err != nil {
+			fmt.Println("Error unpacking MMSI:", err)
+			break
+		}
 		mmsi := fmt.Sprintf("%09d", val)
 		i += 4
 
-		val, _ = getInt32(region[i : i+4])
+		val, err = getInt32(region[i : i+4])
+		if err != nil {
+			fmt.Println("Error unpacking lat:", err)
+			break
+		}
 		lat := float64(val) / 600000.0
 		i += 4
 
-		val, _ = getInt32(region[i : i+4])
+		val, err = getInt32(region[i : i+4])
+		if err != nil {
+			fmt.Println("Error unpacking lon:", err)
+			break
+		}
 		lon := float64(val) / 600000.0
 		i += 4
 

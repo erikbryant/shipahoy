@@ -40,7 +40,7 @@ type Ship struct {
 	Lon        float64
 	ShipCourse float64
 	Speed      float64
-	Sightings  int
+	Sightings  int64
 }
 
 // Sighting holds the relevant information about a ship sighting.
@@ -174,7 +174,7 @@ func LookupLastSighting(details Ship) (timestamp int64) {
 }
 
 // CountSightings counts the number of times we have seen this ship.
-func CountSightings(mmsi string) (count int) {
+func CountSightings(mmsi string) (count int64) {
 	sqlString := "SELECT COUNT(*) FROM sightings WHERE mmsi = " + mmsi
 
 	rows := db.QueryRow(sqlString)
