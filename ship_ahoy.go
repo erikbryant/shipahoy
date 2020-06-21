@@ -124,17 +124,67 @@ func decodeMmsi(mmsi string) string {
 	}
 
 	msg := ""
+	mid := mmsi[0:3]
 
 	// https://en.wikipedia.org/wiki/Maritime_Mobile_Service_Identity
 	// https://en.wikipedia.org/wiki/Maritime_identification_digits
 	// https://www.navcen.uscg.gov/?pageName=mtMmsi#format
 	switch mmsi[0] {
 	case '0':
-		// Ship group, coast station, or group of coast stations
-		msg += "Ship group or coast station "
+		// 0: Ship group
+		// 00: Coast radio station
+		if mmsi[1] == '0' {
+			msg += "Coast radio station "
+			mid = mmsi[2:5]
+		} else {
+			msg += "Ship group "
+			mid = mmsi[1:4]
+		}
 	case '1':
-		// For use by SAR aircraft (111MIDaxx)
-		msg += "SAR aircraft "
+		// 111: For use by SAR aircraft (111MIDaxx)
+		if mmsi[0:3] == "111" {
+			msg += "SAR aircraft "
+			mid = mmsi[3:6]
+		} else {
+			msg += "Unknown type 1 "
+			mid = mmsi[1:4]
+		}
+	case '8':
+		// Handheld VHF transceiver with DSC and GNSS
+		msg += "Handheld VHF "
+		mid = mmsi[1:4]
+	case '9':
+		// Devices using a free-form number identity:
+		//   Search and Rescue Transponders (970yyzzzz)
+		//   Man overboard DSC and/or AIS devices (972yyzzzz)
+		//   406 MHz EPIRBs fitted with an AIS transmitter (974yyzzzz)
+		//   Craft associated with a parent ship (98MIDxxxx)
+		//   AtoN (aid to navigation) (99MIDaxxx)
+		msg += "Misc "
+
+		switch mmsi[0:2] {
+		case "98":
+			msg += "craft associated with parent ship "
+			mid = mmsi[2:5]
+		case "99":
+			msg += "aid to navigation "
+			mid = mmsi[2:5]
+		default:
+			switch mmsi[0:3] {
+			case "970":
+				msg += "SAR transponder "
+				mid = mmsi[3:6]
+			case "972":
+				msg += "man overboard device "
+				mid = mmsi[3:6]
+			case "974":
+				msg += "EPIRB with AIS transmitter "
+				mid = mmsi[3:6]
+			}
+		}
+	}
+
+	switch mid[0] {
 	case '2':
 		// MID: Europe
 		msg += "Europe "
@@ -153,17 +203,8 @@ func decodeMmsi(mmsi string) string {
 	case '7':
 		// MID: South America
 		msg += "South America "
-	case '8':
-		// Handheld VHF transceiver with DSC and GNSS
-		msg += "Handheld VHF "
-	case '9':
-		// Devices using a free-form number identity:
-		// Search and Rescue Transponders (970yyzzzz)
-		// Man overboard DSC and/or AIS devices (972yyzzzz)
-		// 406 MHz EPIRBs fitted with an AIS transmitter (974yyzzzz)
-		// Craft associated with a parent ship (98MIDxxxx)
-		// AtoN (aid to navigation) (99MIDaxxx)
-		msg += "Misc "
+	default:
+		msg += "Invalid MID " + mid + " "
 	}
 
 	// Trailing zeroes.
@@ -184,16 +225,16 @@ func decodeMmsi(mmsi string) string {
 	//
 	// MIDxxx000
 	if strings.HasSuffix(mmsi, "000") {
-		msg += "[B/C/M] "
+		msg += "[Immarsat B/C/M]"
 	} else {
 		if strings.HasSuffix(mmsi, "0") {
-			msg += "[C] "
+			msg += "[Immarsat C] "
 		} else {
-			msg += "[A or other] "
+			msg += "[Immarsat A or other] "
 		}
 	}
 
-	return msg
+	return strings.TrimSpace(msg)
 }
 
 // play() plays a given sound file.

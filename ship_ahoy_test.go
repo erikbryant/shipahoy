@@ -24,6 +24,51 @@ func TestValidateMmsi(t *testing.T) {
 	}
 }
 
+func TestDecodeMmsi(t *testing.T) {
+	testCases := []struct {
+		mmsi     string
+		expected string
+	}{
+		// 0
+		{"041211111", "Ship group Asia [Immarsat A or other]"},
+		{"004121111", "Coast radio station Asia [Immarsat A or other]"},
+
+		// 1
+		{"144411111", "Unknown type 1 Asia [Immarsat A or other]"},
+		{"111444111", "SAR aircraft Asia [Immarsat A or other]"},
+
+		// 2-7
+		{"200111111", "Europe [Immarsat A or other]"},
+		{"300111111", "North/Central America [Immarsat A or other]"},
+		{"400111111", "Asia [Immarsat A or other]"},
+		{"500111111", "Oceania [Immarsat A or other]"},
+		{"600111111", "Africa [Immarsat A or other]"},
+		{"700111111", "South America [Immarsat A or other]"},
+
+		// 8
+		{"855511111", "Handheld VHF Oceania [Immarsat A or other]"},
+
+		// 9
+		{"970777111", "Misc SAR transponder South America [Immarsat A or other]"},
+		{"972777111", "Misc man overboard device South America [Immarsat A or other]"},
+		{"974777111", "Misc EPIRB with AIS transmitter South America [Immarsat A or other]"},
+		{"987771111", "Misc craft associated with parent ship South America [Immarsat A or other]"},
+		{"997771111", "Misc aid to navigation South America [Immarsat A or other]"},
+
+		// Immarsat
+		{"666111111", "Africa [Immarsat A or other]"},
+		{"666111110", "Africa [Immarsat C]"},
+		{"666111000", "Africa [Immarsat B/C/M]"},
+	}
+
+	for _, testCase := range testCases {
+		answer := decodeMmsi(testCase.mmsi)
+		if answer != testCase.expected {
+			t.Errorf("ERROR: For %v expected %v, got %v", testCase.mmsi, testCase.expected, answer)
+		}
+	}
+}
+
 func TestDirectLink(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -36,9 +81,9 @@ func TestDirectLink(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		url := directLink(testCase.name, testCase.imo, testCase.mmsi)
-		if url != testCase.expected {
-			t.Errorf("ERROR: For %v, %v, %v expected %v, got %v", testCase.name, testCase.imo, testCase.mmsi, testCase.expected, url)
+		answer := directLink(testCase.name, testCase.imo, testCase.mmsi)
+		if answer != testCase.expected {
+			t.Errorf("ERROR: For %v, %v, %v expected %v, got %v", testCase.name, testCase.imo, testCase.mmsi, testCase.expected, answer)
 		}
 	}
 }
