@@ -283,7 +283,8 @@ func prettify(i interface{}) string {
 // alert() prints a message and plays an alert tone.
 func alert(details database.Ship) {
 	fmt.Printf(
-		"\nShip Ahoy!   %s\n%+v\n\n",
+		"\nShip Ahoy!  %s  %s\n%+v\n\n",
+		time.Now().Format("Mon Jan 2 15:04:05"),
 		decodeMmsi(details.MMSI),
 		prettify(details),
 	)
@@ -505,7 +506,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 		err = validateMmsi(mmsi)
 		if err != nil {
 			fmt.Println(err)
-			fmt.Printf("Raw data: 0x%x 0x%x 0x%x 0x%x", region[i], region[i+1], region[i+2], region[i+3])
+			fmt.Printf("Raw data: 0x%x 0x%x 0x%x 0x%x\n", region[i], region[i+1], region[i+2], region[i+3])
 			break
 		}
 		i += 4
