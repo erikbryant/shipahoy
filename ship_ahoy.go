@@ -74,6 +74,7 @@ var (
 		"367533950": true, // Sausalito Bmpress
 		"366831930": true, // Millennium
 		"366864140": true, // Naiad
+		"338303816": true, // Coastal 24
 	}
 )
 
@@ -237,8 +238,8 @@ func decodeMmsi(mmsi string) string {
 	return strings.TrimSpace(msg)
 }
 
-// play() plays a given sound file.
-func play(file string, wavFile bool) {
+// play() plays a given sound file. MP3 and WAV are supported.
+func play(file string) {
 	// Open first sample File
 	f, err := os.Open(file)
 
@@ -248,12 +249,12 @@ func play(file string, wavFile bool) {
 		return
 	}
 
-	// Decode the .mp3 File, if you have a .wav file, use wav.Decode(f)
+	// Decode the file.
 	var (
 		s      beep.StreamSeekCloser
 		format beep.Format
 	)
-	if wavFile {
+	if strings.HasSuffix(file, ".wav") {
 		s, format, _ = wav.Decode(f)
 	} else {
 		s, format, _ = mp3.Decode(f)
@@ -288,9 +289,11 @@ func alert(details database.Ship) {
 	)
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
-		go play("meep.wav", true)
+		go play("meep.wav")
+	} else if strings.Contains(strings.ToLower(details.Type), "pilot") {
+		go play("pilot.mp3")
 	} else {
-		go play("ship_horn.mp3", false)
+		go play("ship_horn.mp3")
 	}
 }
 
@@ -499,6 +502,12 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 			break
 		}
 		mmsi := fmt.Sprintf("%09d", val)
+		err = validateMmsi(mmsi)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Printf("Raw data: 0x%x 0x%x 0x%x 0x%x", region[i], region[i+1], region[i+2], region[i+3])
+			break
+		}
 		i += 4
 
 		val, err = getInt32(region[i : i+4])
