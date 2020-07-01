@@ -264,8 +264,8 @@ func play(file string) {
 	playStream(s, format)
 }
 
-// t2s converts text to speech.
-func t2s(text string) {
+// say converts text to speech.
+func say(text string) {
 	ctx := context.Background()
 
 	c, err := texttospeech.NewClient(ctx)
@@ -339,7 +339,7 @@ func alert(details database.Ship) {
 	}
 
 	summary := fmt.Sprintf("%s. %s. Course %3.f. Speed %3.1f knots. %d sightings.", details.Name, details.Type, details.ShipCourse, details.Speed, details.Sightings)
-	t2s(summary)
+	say(summary)
 }
 
 // directLink builds a link to details about a given ship.
