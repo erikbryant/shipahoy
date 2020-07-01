@@ -82,8 +82,8 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-// MyGeo returns the lat/lon pair of the location of the computer running this program.
-func MyGeo() (lat, lon float64) {
+// myGeo returns the lat/lon pair of the location of the computer running this program.
+func myGeo() (lat, lon float64) {
 	// myIP := web.Request("http://ifconfig.co/ip") <-- site has malware
 	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key=" + geoAPIKey)
 	if err != nil {
@@ -99,7 +99,7 @@ func MyGeo() (lat, lon float64) {
 	return lat, lon
 }
 
-// validateMmsi() tests whether an MMSI is valid.
+// validateMmsi tests whether an MMSI is valid.
 func validateMmsi(mmsi string) error {
 	if len(mmsi) != 9 {
 		return fmt.Errorf("MMSI length != 9: %s", mmsi)
@@ -116,7 +116,7 @@ func validateMmsi(mmsi string) error {
 	return nil
 }
 
-// decodeMmsi() returns a string describing the data encoded in the given MMSI.
+// decodeMmsi returns a string describing the data encoded in the given MMSI.
 func decodeMmsi(mmsi string) string {
 	err := validateMmsi(mmsi)
 	if err != nil {
@@ -238,22 +238,19 @@ func decodeMmsi(mmsi string) string {
 	return strings.TrimSpace(msg)
 }
 
-// play() plays a given sound file. MP3 and WAV are supported.
+// play plays a given sound file. MP3 and WAV are supported.
 func play(file string) {
-	// Open first sample File
 	f, err := os.Open(file)
-
-	// Check for errors when opening the file
 	if err != nil {
 		fmt.Println("Could not open audio file", file)
 		return
 	}
 
-	// Decode the file.
 	var (
 		s      beep.StreamSeekCloser
 		format beep.Format
 	)
+
 	if strings.HasSuffix(file, ".wav") {
 		s, format, _ = wav.Decode(f)
 	} else {
@@ -280,7 +277,7 @@ func prettify(i interface{}) string {
 	return string(s)
 }
 
-// alert() prints a message and plays an alert tone.
+// alert prints a message and plays an alert tone.
 func alert(details database.Ship) {
 	fmt.Printf(
 		"\nShip Ahoy!  %s  %s\n%+v\n\n",
@@ -310,7 +307,7 @@ func directLink(name, imo, mmsi string) string {
 	return ("https://www.vesselfinder.com/vessels/" + n + "-IMO-" + imo + "-MMSI-" + mmsi)
 }
 
-// getShipDetails() retrieves ship details from the database, if they exist, or from the web if they do not.
+// getShipDetails retrieves ship details from the database, if they exist, or from the web if they do not.
 func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, bool) {
 	details, seen := database.LookupShip(mmsi)
 
@@ -384,7 +381,7 @@ func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, 
 	return details, true
 }
 
-// visibleFromApt() returns a bool indicating whether the ship is visible
+// visibleFromApt returns a bool indicating whether the ship is visible
 // from our apartment window.
 func visibleFromApt(lat, lon float64) bool {
 	// The bounding box for the area visible from our apartment.
@@ -439,7 +436,7 @@ func getInt32(buf string) (int32, error) {
 	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3]), nil
 }
 
-// shipsInRegion() returns the ships found in a given lat/lon area via a channel.
+// shipsInRegion returns the ships found in a given lat/lon area via a channel.
 func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 	defer close(c)
 
@@ -548,7 +545,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 	}
 }
 
-// lookAtShips() looks for interesting ships in a given lat/lon region.
+// lookAtShips looks for interesting ships in a given lat/lon region.
 func lookAtShips(latA, lonA, latB, lonB float64) {
 	// Open channel
 	c := make(chan database.Ship, 10)
@@ -564,7 +561,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		}
 
 		// Only alert for ships that are moving.
-		if details.Speed < 1.0 {
+		if details.Speed < 2.0 {
 			continue
 		}
 
@@ -596,7 +593,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 	}
 }
 
-// box() returns a bounding box of the circle with center of the
+// box returns a bounding box of the circle with center of the
 // current location and radius of 'nmiles' nautical miles.
 // Returns (latA, lonA, latB, lonB) Where A is the bottom left
 // corner and B is the upper right corner.
@@ -612,7 +609,7 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 	return bboxLatA, bboxLonA, bboxLatB, bboxLonB
 }
 
-// scanNearby() continually scans for ships within a given radius of this computer.
+// scanNearby continually scans for ships within a given radius of this computer.
 func scanNearby(sleepSecs time.Duration) {
 	// TODO: If the bounding region of 'nearby' overlaps the bounding
 	// region of scan_apt_visible then do not scan 'nearby'.
@@ -639,7 +636,7 @@ func scanNearby(sleepSecs time.Duration) {
 	}
 }
 
-// scanAptVisible() continually scans for ships visible from our apartment.
+// scanAptVisible continually scans for ships visible from our apartment.
 func scanAptVisible(sleepSecs time.Duration) {
 	lat, lon := 37.82, -122.45 // Center of visible bay
 	latA, lonA, latB, lonB := box(lat, lon, 10)
@@ -650,7 +647,7 @@ func scanAptVisible(sleepSecs time.Duration) {
 	}
 }
 
-// scanPlanet() continually scans the entire planet for heretofore unseen ships.
+// scanPlanet continually scans the entire planet for heretofore unseen ships.
 func scanPlanet(sleepSecs time.Duration) {
 	for {
 		// Pick a random lat/lon box on the surface of the planet.
@@ -678,7 +675,7 @@ func scanPlanet(sleepSecs time.Duration) {
 	}
 }
 
-// noaaReading() reads one datum from a given NOAA station.
+// noaaReading reads one datum from a given NOAA station.
 func noaaReading(url string, reading *database.NoaaDatum) bool {
 	response, err := web.RequestJSON(url)
 	if err != nil {
@@ -696,7 +693,7 @@ func noaaReading(url string, reading *database.NoaaDatum) bool {
 	return true
 }
 
-// tides() looks up instantaneous tide data for a given NOAA station.
+// tides looks up instantaneous tide data for a given NOAA station.
 func tides(sleepSecs time.Duration) {
 	reading := database.NoaaDatum{
 		Station: "9414290",
@@ -719,7 +716,7 @@ func tides(sleepSecs time.Duration) {
 	}
 }
 
-// airGap() looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
+// airGap looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
 func airGap(sleepSecs time.Duration) {
 	reading := database.NoaaDatum{
 		Station: "9414304",
@@ -742,7 +739,7 @@ func airGap(sleepSecs time.Duration) {
 	}
 }
 
-// dbStats() prints interesting statistics about the size of the database.
+// dbStats prints interesting statistics about the size of the database.
 func dbStats(sleepSecs time.Duration) {
 	tables := []string{"ships", "sightings"}
 
