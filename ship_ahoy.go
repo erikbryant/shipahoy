@@ -288,8 +288,23 @@ func play(file string) {
 	playStream(s, format)
 }
 
+// readable makes a string more human readable by removing all non alphanumeric and non-punctuation.
+func readable(text string) string {
+	text = strings.TrimSpace(text)
+	text = strings.ReplaceAll(text, "_", " ")
+	text = strings.ReplaceAll(text, "/", "")
+	text = strings.ReplaceAll(text, "^", "")
+	text = strings.ReplaceAll(text, "[", " ")
+	text = strings.ReplaceAll(text, "]", " ")
+	text = strings.ReplaceAll(text, "\"", "")
+
+	return text
+}
+
 // say converts text to speech and then plays it.
 func say(text string) {
+	text = readable(text)
+
 	ctx := context.Background()
 
 	c, err := texttospeech.NewClient(ctx)
