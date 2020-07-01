@@ -242,6 +242,22 @@ func decodeMmsi(mmsi string) string {
 	return strings.TrimSpace(msg)
 }
 
+// playStream plays a given audio stream.
+func playStream(s beep.StreamSeekCloser, format beep.Format) {
+	// Init the Speaker with the SampleRate of the format and a buffer size.
+	speaker.Init(format.SampleRate, format.SampleRate.N(3*time.Second))
+
+	// Channel, which will signal the end of the playback.
+	playing := make(chan struct{})
+
+	// Now we Play our Streamer on the Speaker
+	speaker.Play(beep.Seq(s, beep.Callback(func() {
+		// Callback after the stream Ends
+		close(playing)
+	})))
+	<-playing
+}
+
 // play plays a given sound file. MP3 and WAV are supported.
 func play(file string) {
 	f, err := os.Open(file)
@@ -256,15 +272,23 @@ func play(file string) {
 	)
 
 	if strings.HasSuffix(file, ".wav") {
-		s, format, _ = wav.Decode(f)
+		s, format, err = wav.Decode(f)
+		if err != nil {
+			fmt.Println("Could not decode WAV audio file", file, err)
+			return
+		}
 	} else {
-		s, format, _ = mp3.Decode(f)
+		s, format, err = mp3.Decode(f)
+		if err != nil {
+			fmt.Println("Could not decode MP3 audio file", file, err)
+			return
+		}
 	}
 
 	playStream(s, format)
 }
 
-// say converts text to speech.
+// say converts text to speech and then plays it.
 func say(text string) {
 	ctx := context.Background()
 
@@ -295,29 +319,21 @@ func say(text string) {
 	}
 
 	r := bytes.NewReader(resp.GetAudioContent())
-	s, format, _ := wav.Decode(r)
+	s, format, err := wav.Decode(r)
+	if err != nil {
+		fmt.Println("Could not decode WAV speech stream", text, err)
+		return
+	}
 	playStream(s, format)
-}
-
-// playStream plays a given audio stream.
-func playStream(s beep.StreamSeekCloser, format beep.Format) {
-	// Init the Speaker with the SampleRate of the format and a buffer size.
-	speaker.Init(format.SampleRate, format.SampleRate.N(3*time.Second))
-
-	// Channel, which will signal the end of the playback.
-	playing := make(chan struct{})
-
-	// Now we Play our Streamer on the Speaker
-	speaker.Play(beep.Seq(s, beep.Callback(func() {
-		// Callback after the stream Ends
-		close(playing)
-	})))
-	<-playing
 }
 
 // prettify formats and prints the input.
 func prettify(i interface{}) string {
-	s, _ := json.MarshalIndent(i, "", " ")
+	s, err := json.MarshalIndent(i, "", " ")
+	if err != nil {
+		fmt.Println("Could not Marshal object", i)
+	}
+
 	return string(s)
 }
 
