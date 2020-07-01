@@ -12,6 +12,9 @@ package main
 // $ go get github.com/erikbryant/web
 
 import (
+	"bytes"
+	"cloud.google.com/go/texttospeech/apiv1"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -23,6 +26,7 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/wav"
 	_ "github.com/go-sql-driver/mysql"
+	texttospeechpb "google.golang.org/genproto/googleapis/cloud/texttospeech/v1"
 	"log"
 	"math"
 	"math/rand"
@@ -257,6 +261,46 @@ func play(file string) {
 		s, format, _ = mp3.Decode(f)
 	}
 
+	playStream(s, format)
+}
+
+// t2s converts text to speech.
+func t2s(text string) {
+	ctx := context.Background()
+
+	c, err := texttospeech.NewClient(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	req := &texttospeechpb.SynthesizeSpeechRequest{
+		Input: &texttospeechpb.SynthesisInput{
+			InputSource: &texttospeechpb.SynthesisInput_Text{
+				Text: text,
+			},
+		},
+		Voice: &texttospeechpb.VoiceSelectionParams{
+			// https://cloud.google.com/text-to-speech/docs/voices
+			LanguageCode: "en-US",
+			Name:         "en-US-Standard-C",
+		},
+		AudioConfig: &texttospeechpb.AudioConfig{
+			AudioEncoding: texttospeechpb.AudioEncoding_LINEAR16,
+			SpeakingRate:  1.0,
+		},
+	}
+	resp, err := c.SynthesizeSpeech(ctx, req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := bytes.NewReader(resp.GetAudioContent())
+	s, format, _ := wav.Decode(r)
+	playStream(s, format)
+}
+
+// playStream plays a given audio stream.
+func playStream(s beep.StreamSeekCloser, format beep.Format) {
 	// Init the Speaker with the SampleRate of the format and a buffer size.
 	speaker.Init(format.SampleRate, format.SampleRate.N(3*time.Second))
 
@@ -293,6 +337,9 @@ func alert(details database.Ship) {
 	} else {
 		go play("ship_horn.mp3")
 	}
+
+	summary := fmt.Sprintf("%s. %s. Course %3.f. Speed %3.1f knots. %d sightings.", details.Name, details.Type, details.ShipCourse, details.Speed, details.Sightings)
+	t2s(summary)
 }
 
 // directLink builds a link to details about a given ship.
@@ -613,7 +660,7 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 func scanNearby(sleepSecs time.Duration) {
 	// TODO: If the bounding region of 'nearby' overlaps the bounding
 	// region of scan_apt_visible then do not scan 'nearby'.
-	lat, lon := MyGeo()
+	lat, lon := myGeo()
 	latA, lonA, latB, lonB := box(lat, lon, 30)
 
 	// Open channel.
@@ -770,7 +817,7 @@ func main() {
 	}
 
 	geoAPIKey = aes.Decrypt(geoAPIKeyCrypt, *passPhrase)
-	myLat, myLon = MyGeo()
+	myLat, myLon = myGeo()
 
 	database.Open()
 	defer database.Close()
