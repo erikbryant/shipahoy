@@ -79,6 +79,7 @@ var (
 		"366831930": true, // Millennium
 		"366864140": true, // Naiad
 		"338303816": true, // Coastal 24
+		"319421001": true, // RIB 45
 	}
 )
 
@@ -298,6 +299,9 @@ func readable(text string) string {
 	text = strings.ReplaceAll(text, "]", " ")
 	text = strings.ReplaceAll(text, "\"", "")
 
+	// Specific ships we have seen that read poorly.
+	text = strings.ReplaceAll(text, "SEASPAN HAMBURG", "SEA SPAN HAMBURG")
+
 	return text
 }
 
@@ -362,14 +366,31 @@ func alert(details database.Ship) {
 	)
 
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
-		go play("meep.wav")
+		play("meep.wav")
 	} else if strings.Contains(strings.ToLower(details.Type), "pilot") {
-		go play("pilot.mp3")
+		play("pilot.mp3")
 	} else {
-		go play("ship_horn.mp3")
+		play("ship_horn.mp3")
 	}
 
-	summary := fmt.Sprintf("%s. %s. Course %3.f. Speed %3.1f knots. %d sightings.", details.Name, details.Type, details.ShipCourse, details.Speed, details.Sightings)
+	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %3.f degrees.", details.Name, details.Type, details.ShipCourse)
+
+	// Hearing, "eleven point zero knots" sounds awkward. Remove the "point zero".
+	if math.Trunc(details.Speed) == details.Speed {
+		summary = fmt.Sprintf("%s Speed %d knots.", summary, math.Trunc(details.Speed))
+	} else {
+		summary = fmt.Sprintf("%s Speed %3.1f knots.", summary, details.Speed)
+	}
+
+	switch details.Sightings {
+	case 0:
+		summary = fmt.Sprintf("%s This is the first sighting.", summary)
+	case 1:
+		summary = fmt.Sprintf("%s One previous sighting.", summary)
+	default:
+		summary = fmt.Sprintf("%s %d previous sightings.", summary, details.Sightings)
+	}
+
 	say(summary)
 }
 
