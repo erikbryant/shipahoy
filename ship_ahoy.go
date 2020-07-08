@@ -50,6 +50,7 @@ var (
 
 	interestingMMSI = map[string]bool{
 		"338691000": true, // Matthew Turner
+		"338359786": true, // Randy S Cummings (associated with Pacific Responder?)
 	}
 
 	uninterestingAIS = map[string]bool{
@@ -377,7 +378,7 @@ func alert(details database.Ship) {
 
 	// Hearing, "eleven point zero knots" sounds awkward. Remove the "point zero".
 	if math.Trunc(details.Speed) == details.Speed {
-		summary = fmt.Sprintf("%s Speed %d knots.", summary, math.Trunc(details.Speed))
+		summary = fmt.Sprintf("%s Speed %3.0f knots.", summary, math.Trunc(details.Speed))
 	} else {
 		summary = fmt.Sprintf("%s Speed %3.1f knots.", summary, details.Speed)
 	}
