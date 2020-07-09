@@ -741,18 +741,18 @@ func airGap(sleepSecs time.Duration) {
 
 // dbStats prints interesting statistics about the size of the database.
 func dbStats(sleepSecs time.Duration) {
-	tables := []string{"ships", "sightings"}
-
 	for {
-		msg := "## "
-		for _, t := range tables {
-			count, ok := database.CountRows(t)
-			if ok {
-				msg += t + ": " + strconv.FormatInt(count, 10) + " "
+		stats := database.TableStats()
+
+		if len(stats) > 0 {
+			msg := "## "
+			for table, count := range stats {
+				msg += table + ": " + strconv.FormatInt(count, 10) + " "
 			}
+			msg += "##"
+			fmt.Println(msg)
 		}
-		msg += "##"
-		fmt.Println(msg)
+
 		time.Sleep(sleepSecs)
 	}
 }
