@@ -24,8 +24,8 @@ import (
 
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	passPhrase = flag.String("passPhrase", "", "Passphrase to unlock API key")
 
-	passPhrase     = flag.String("passPhrase", "", "Passphrase to unlock API key")
 	geoAPIKeyCrypt = "2nC/f4XNjMo3Ddmn1b+aHed5ybr01za4plBCWjy+bjLkBIgT4+3QjtugSuq2iItxNRW9OodilLqQ7OG+"
 	geoAPIKey      string
 
@@ -769,6 +769,8 @@ func main() {
 
 	geoAPIKey = aes.Decrypt(geoAPIKeyCrypt, *passPhrase)
 	myLat, myLon = myGeo()
+
+	beepspeak.InitSay(*passPhrase)
 
 	database.Open()
 	defer database.Close()
