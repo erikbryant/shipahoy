@@ -90,7 +90,9 @@ var (
 // init performs the pre-flight setup.
 func init() {
 	rand.Seed(time.Now().Unix())
+}
 
+func decodeGcpAuth() {
 	flag.Parse()
 
 	path := os.TempDir() + "/" + "gcp_auth.json"
@@ -893,6 +895,8 @@ func dbStats(sleepSecs time.Duration) {
 
 func main() {
 	flag.Parse()
+
+	decodeGcpAuth()
 
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
