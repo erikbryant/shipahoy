@@ -19,7 +19,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/erikbryant/aes"
-	"github.com/erikbryant/beepspeak"
 	"github.com/erikbryant/ship_ahoy/database"
 	"github.com/erikbryant/web"
 	"github.com/faiface/beep"
