@@ -257,6 +257,29 @@ func prettify(i interface{}) string {
 	return string(s)
 }
 
+// readableCourse takes a compass heading and formats it in a human speakable way.
+func readableCourse(heading float64) string {
+	course := int(math.Round(heading))
+	courseText := ""
+
+	if course%100 == 0 {
+		courseText = fmt.Sprintf("%d", course)
+	} else if course < 100 {
+		courseText = fmt.Sprintf("%d", course)
+	} else {
+		var hundreds int
+		hundreds = course / 100
+		tens := course % 100
+		if tens < 10 {
+			courseText = fmt.Sprintf("%dO%d", hundreds, tens)
+		} else {
+			courseText = fmt.Sprintf("%d %d", hundreds, tens)
+		}
+	}
+
+	return courseText
+}
+
 // alert prints a message and plays an alert tone.
 func alert(details database.Ship) {
 	fmt.Printf(
@@ -274,7 +297,7 @@ func alert(details database.Ship) {
 		beepspeak.Play("ship_horn.mp3")
 	}
 
-	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %3.f degrees.", details.Name, details.Type, details.ShipCourse)
+	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %s degrees.", details.Name, details.Type, readableCourse(details.ShipCourse))
 
 	// Hearing, "eleven point zero knots" sounds awkward. Remove the "point zero".
 	if math.Trunc(details.Speed) == details.Speed {
