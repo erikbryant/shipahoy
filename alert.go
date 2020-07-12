@@ -1,4 +1,4 @@
-package ship_ahoy
+package shipahoy
 
 // $ apt install libasound2-dev
 
@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/erikbryant/beepspeak"
-	"github.com/erikbryant/ship_ahoy/database"
+	"github.com/erikbryant/shipahoy/database"
 	"math"
 	"strings"
 	"time"

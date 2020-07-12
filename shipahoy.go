@@ -1,12 +1,11 @@
-package ship_ahoy
+package shipahoy
 
 import (
 	"fmt"
 	"github.com/erikbryant/aes"
 	"github.com/erikbryant/beepspeak"
-	"github.com/erikbryant/ship_ahoy/database"
+	"github.com/erikbryant/shipahoy/database"
 	"github.com/erikbryant/web"
-	_ "github.com/go-sql-driver/mysql"
 	"math/rand"
 	"strconv"
 	"time"
@@ -331,7 +330,8 @@ func dbStats(sleepSecs time.Duration) {
 	}
 }
 
-func Doit(passPhrase string, cpuprofile string) {
+// Start is the entry point for the shipsahoy module. It starts each of the scanners.
+func Start(passPhrase string) {
 	var err error
 
 	geoAPIKey, err = aes.Decrypt(geoAPIKeyCrypt, passPhrase)
@@ -344,7 +344,6 @@ func Doit(passPhrase string, cpuprofile string) {
 	beepspeak.InitSay(gcpAuthCrypt, passPhrase)
 
 	database.Open()
-	defer database.Close()
 
 	// go scanNearby(5 * 60 * time.Second)
 	go scanAptVisible(2 * 60 * time.Second)
@@ -352,12 +351,9 @@ func Doit(passPhrase string, cpuprofile string) {
 	go tides(10 * 60 * time.Second)
 	go airGap(10 * 60 * time.Second)
 	go dbStats(10 * 60 * time.Second)
+}
 
-	for {
-		time.Sleep(3 * 60 * time.Second)
-		if cpuprofile != "" {
-			break
-		}
-	}
-
+// Stop stops each of the scanners and performs any needed shutdown.
+func Stop() {
+	database.Close()
 }

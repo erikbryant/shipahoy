@@ -1,8 +1,8 @@
-package ship_ahoy
+package shipahoy
 
 import (
 	"fmt"
-	"github.com/erikbryant/ship_ahoy/database"
+	"github.com/erikbryant/shipahoy/database"
 	"github.com/erikbryant/web"
 	"math"
 	"strconv"

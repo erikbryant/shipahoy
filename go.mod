@@ -1,4 +1,4 @@
-module github.com/erikbryant/ship_ahoy
+module github.com/erikbryant/shipahoy
 
 go 1.14
 

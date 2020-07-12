@@ -1,3 +1,3 @@
-package ship_ahoy
+package shipahoy
 
 // TODO: write tests

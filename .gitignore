@@ -5,7 +5,7 @@ gcp_auth.json
 profile
 
 # The executable
-ship_ahoy
+shipahoy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

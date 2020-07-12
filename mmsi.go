@@ -1,4 +1,4 @@
-package ship_ahoy
+package shipahoy
 
 import (
 	"fmt"
