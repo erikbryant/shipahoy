@@ -1,4 +1,4 @@
-package main
+package ship_ahoy
 
 import (
 	"testing"

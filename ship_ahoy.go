@@ -1,27 +1,18 @@
-package main
-
-// $ apt install libasound2-dev
+package ship_ahoy
 
 import (
-	"flag"
 	"fmt"
 	"github.com/erikbryant/aes"
 	"github.com/erikbryant/beepspeak"
 	"github.com/erikbryant/ship_ahoy/database"
 	"github.com/erikbryant/web"
 	_ "github.com/go-sql-driver/mysql"
-	"log"
 	"math/rand"
-	"os"
-	"runtime/pprof"
 	"strconv"
 	"time"
 )
 
 var (
-	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-	passPhrase = flag.String("passPhrase", "", "Passphrase to unlock API key")
-
 	geoAPIKeyCrypt = "2nC/f4XNjMo3Ddmn1b+aHed5ybr01za4plBCWjy+bjLkBIgT4+3QjtugSuq2iItxNRW9OodilLqQ7OG+"
 	geoAPIKey      string
 
@@ -340,28 +331,17 @@ func dbStats(sleepSecs time.Duration) {
 	}
 }
 
-func main() {
-	flag.Parse()
-
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-
+func Doit(passPhrase string, cpuprofile string) {
 	var err error
 
-	geoAPIKey, err = aes.Decrypt(geoAPIKeyCrypt, *passPhrase)
+	geoAPIKey, err = aes.Decrypt(geoAPIKeyCrypt, passPhrase)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	myLat, myLon = myGeo()
 
-	beepspeak.InitSay(gcpAuthCrypt, *passPhrase)
+	beepspeak.InitSay(gcpAuthCrypt, passPhrase)
 
 	database.Open()
 	defer database.Close()
@@ -375,8 +355,9 @@ func main() {
 
 	for {
 		time.Sleep(3 * 60 * time.Second)
-		if *cpuprofile != "" {
+		if cpuprofile != "" {
 			break
 		}
 	}
+
 }

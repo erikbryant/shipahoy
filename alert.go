@@ -1,4 +1,6 @@
-package main
+package ship_ahoy
+
+// $ apt install libasound2-dev
 
 import (
 	"encoding/json"
