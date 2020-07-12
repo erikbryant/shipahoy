@@ -3,7 +3,6 @@ package main
 // $ apt install libasound2-dev
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/erikbryant/aes"
@@ -12,13 +11,10 @@ import (
 	"github.com/erikbryant/web"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
-	"math"
 	"math/rand"
 	"os"
-	"regexp"
 	"runtime/pprof"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -67,6 +63,7 @@ var (
 		"366864140": true, // Naiad
 		"338303816": true, // Coastal 24
 		"319421001": true, // RIB 45
+		"338099564": true, // Wings
 	}
 )
 
@@ -90,318 +87,6 @@ func myGeo() (lat, lon float64) {
 	lat = location["latitude"].(float64)
 	lon = location["longitude"].(float64)
 	return lat, lon
-}
-
-// validateMmsi tests whether an MMSI is valid.
-func validateMmsi(mmsi string) error {
-	if len(mmsi) != 9 {
-		return fmt.Errorf("MMSI length != 9: %s", mmsi)
-	}
-
-	matched, err := regexp.MatchString("^[0-9]{9}$", mmsi)
-	if err != nil {
-		return err
-	}
-	if !matched {
-		return fmt.Errorf("Invalid MMSI found: %s", mmsi)
-	}
-
-	return nil
-}
-
-// decodeMmsi returns a string describing the data encoded in the given MMSI.
-func decodeMmsi(mmsi string) string {
-	err := validateMmsi(mmsi)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-
-	msg := ""
-	mid := mmsi[0:3]
-
-	// https://en.wikipedia.org/wiki/Maritime_Mobile_Service_Identity
-	// https://en.wikipedia.org/wiki/Maritime_identification_digits
-	// https://www.navcen.uscg.gov/?pageName=mtMmsi#format
-	switch mmsi[0] {
-	case '0':
-		// 0: Ship group
-		// 00: Coast radio station
-		if mmsi[1] == '0' {
-			msg += "Coast radio station "
-			mid = mmsi[2:5]
-		} else {
-			msg += "Ship group "
-			mid = mmsi[1:4]
-		}
-	case '1':
-		// 111: For use by SAR aircraft (111MIDaxx)
-		if mmsi[0:3] == "111" {
-			msg += "SAR aircraft "
-			mid = mmsi[3:6]
-		} else {
-			msg += "Unknown type 1 "
-			mid = mmsi[1:4]
-		}
-	case '8':
-		// Handheld VHF transceiver with DSC and GNSS
-		msg += "Handheld VHF "
-		mid = mmsi[1:4]
-	case '9':
-		// Devices using a free-form number identity:
-		//   Search and Rescue Transponders (970yyzzzz)
-		//   Man overboard DSC and/or AIS devices (972yyzzzz)
-		//   406 MHz EPIRBs fitted with an AIS transmitter (974yyzzzz)
-		//   Craft associated with a parent ship (98MIDxxxx)
-		//   AtoN (aid to navigation) (99MIDaxxx)
-		msg += "Misc "
-
-		switch mmsi[0:2] {
-		case "98":
-			msg += "craft associated with parent ship "
-			mid = mmsi[2:5]
-		case "99":
-			msg += "aid to navigation "
-			mid = mmsi[2:5]
-		default:
-			switch mmsi[0:3] {
-			case "970":
-				msg += "SAR transponder "
-				mid = mmsi[3:6]
-			case "972":
-				msg += "man overboard device "
-				mid = mmsi[3:6]
-			case "974":
-				msg += "EPIRB with AIS transmitter "
-				mid = mmsi[3:6]
-			}
-		}
-	}
-
-	switch mid[0] {
-	case '2':
-		// MID: Europe
-		msg += "Europe "
-	case '3':
-		// MID: North and Central America and Caribbean
-		msg += "North/Central America "
-	case '4':
-		// MID: Asia
-		msg += "Asia "
-	case '5':
-		// MID: Oceania
-		msg += "Oceania "
-	case '6':
-		// MID: Africa
-		msg += "Africa "
-	case '7':
-		// MID: South America
-		msg += "South America "
-	default:
-		msg += "Invalid MID " + mid + " "
-	}
-
-	// Trailing zeroes.
-	//
-	// If the ship is fitted with an Inmarsat A ship earth station, or has
-	// satellite equipment other than Inmarsat, then the identity needs no
-	// trailing zero.
-	//
-	// If the ship is fitted with an Inmarsat C ship earth station, or it is
-	// expected to be so equipped in the foreseeable future, then the identity
-	// could have one trailing zero:
-	//
-	// MIDxxxxx0
-	//
-	// If the ship is fitted with an Inmarsat B, C or M ship earth station,
-	// or it is expected to be so equipped in the foreseeable future, then
-	// the identity should have three trailing zeros:
-	//
-	// MIDxxx000
-	if strings.HasSuffix(mmsi, "000") {
-		msg += "[Immarsat B/C/M]"
-	} else {
-		if strings.HasSuffix(mmsi, "0") {
-			msg += "[Immarsat C] "
-		} else {
-			msg += "[Immarsat A or other] "
-		}
-	}
-
-	return strings.TrimSpace(msg)
-}
-
-// readable makes a string more human readable by removing all non alphanumeric and non-punctuation.
-func readable(text string) string {
-	text = strings.TrimSpace(text)
-	text = strings.ReplaceAll(text, "_", " ")
-	text = strings.ReplaceAll(text, "/", "")
-	text = strings.ReplaceAll(text, "^", "")
-	text = strings.ReplaceAll(text, "[", " ")
-	text = strings.ReplaceAll(text, "]", " ")
-	text = strings.ReplaceAll(text, "\"", "")
-
-	// Specific ships we have seen that read poorly.
-	text = strings.ReplaceAll(text, "SEASPAN HAMBURG", "SEA SPAN HAMBURG")
-
-	return text
-}
-
-// prettify formats and prints the input.
-func prettify(i interface{}) string {
-	s, err := json.MarshalIndent(i, "", " ")
-	if err != nil {
-		fmt.Println("Could not Marshal object", i)
-	}
-
-	return string(s)
-}
-
-// readableCourse takes a compass heading and formats it in a human speakable way.
-func readableCourse(heading float64) string {
-	course := int(math.Round(heading))
-	courseText := ""
-
-	if course%100 == 0 {
-		courseText = fmt.Sprintf("%d", course)
-	} else if course < 100 {
-		courseText = fmt.Sprintf("%d", course)
-	} else {
-		var hundreds int
-		hundreds = course / 100
-		tens := course % 100
-		if tens < 10 {
-			courseText = fmt.Sprintf("%dO%d", hundreds, tens)
-		} else {
-			courseText = fmt.Sprintf("%d %d", hundreds, tens)
-		}
-	}
-
-	return courseText
-}
-
-// alert prints a message and plays an alert tone.
-func alert(details database.Ship) {
-	fmt.Printf(
-		"\nShip Ahoy!  %s  %s\n%+v\n\n",
-		time.Now().Format("Mon Jan 2 15:04:05"),
-		decodeMmsi(details.MMSI),
-		prettify(details),
-	)
-
-	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
-		beepspeak.Play("meep.wav")
-	} else if strings.Contains(strings.ToLower(details.Type), "pilot") {
-		beepspeak.Play("pilot.mp3")
-	} else {
-		beepspeak.Play("ship_horn.mp3")
-	}
-
-	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %s degrees.", details.Name, details.Type, readableCourse(details.ShipCourse))
-
-	// Hearing, "eleven point zero knots" sounds awkward. Remove the "point zero".
-	if math.Trunc(details.Speed) == details.Speed {
-		summary = fmt.Sprintf("%s Speed %3.0f knots.", summary, math.Trunc(details.Speed))
-	} else {
-		summary = fmt.Sprintf("%s Speed %3.1f knots.", summary, details.Speed)
-	}
-
-	switch details.Sightings {
-	case 0:
-		summary = fmt.Sprintf("%s This is the first sighting.", summary)
-	case 1:
-		summary = fmt.Sprintf("%s One previous sighting.", summary)
-	default:
-		summary = fmt.Sprintf("%s %d previous sightings.", summary, details.Sightings)
-	}
-
-	beepspeak.Say(summary)
-}
-
-// directLink builds a link to details about a given ship.
-func directLink(name, imo, mmsi string) string {
-	// Some ship names have '/' in them. For instance, motor yachts
-	// sometimes have a 'M/Y' prefix. Rather than URL encode the slash,
-	// VesselFinder removes it. Do the same here.
-	n := strings.ReplaceAll(name, "/", "")
-	n = strings.ReplaceAll(n, " ", "-")
-	n = strings.ToUpper(n)
-
-	return ("https://www.vesselfinder.com/vessels/" + n + "-IMO-" + imo + "-MMSI-" + mmsi)
-}
-
-// getShipDetails retrieves ship details from the database, if they exist, or from the web if they do not.
-func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, bool) {
-	details, seen := database.LookupShip(mmsi)
-
-	err := validateMmsi(mmsi)
-	if err != nil {
-		fmt.Println(err)
-		return details, false
-	}
-
-	mmsiURL := "https://www.vesselfinder.com/api/pub/click/" + mmsi
-	response, err := web.RequestJSON(mmsiURL)
-	if err != nil || response == nil {
-		return details, false
-	}
-	if web.ToString(response["name"]) != name {
-		// We have a non-existant MMSI. Abort.
-		return details, false
-	}
-
-	// Example response
-	//
-	// https://www.vesselfinder.com/api/pub/click/367003250
-	// {
-	// 	".ns":0,                 //
-	// 	"a2":"us",               // country of register (abbrv)
-	// 	"al":19,                 // length
-	// 	"aw":8,                  // width
-	// 	"country":"USA",         // country of register
-	// 	"cu":246.7,              // course
-	// 	"dest":"FALSE RIVER",    // destination
-	// 	"draught":33,            // draught
-	// 	"dw":0,                  // deadweight(?)
-	// 	"etaTS":1588620600,      // ETA timestamp
-	// 	"gt":0,                  // gross tonnage
-	// 	"imo":0,                 // imo number
-	// 	"lc.":0,                 //
-	// 	"m9":0,                  //
-	// 	"name":"SARAH REED",     // name
-	// 	"pic":"0-367003250-cf317c76a96fd9b9f5ae4679c64bd065",
-	// 	"r":2,                   //
-	// 	"sc.":0,                 //
-	// 	"sl":false,              //
-	// 	"ss":0.1,                // speed (knots)
-	// 	"ts":1587883051          // timestamp (of position received?)
-	// 	"type":"Towing vessel",  // AIS type
-	// 	"y":0,                   // year built
-	// }
-
-	details.MMSI = mmsi
-	details.Lat = lat
-	details.Lon = lon
-	details.IMO = web.ToString(response["imo"])
-	details.Name = web.ToString(response["name"])
-	details.Type = web.ToString(response["type"])
-	details.GT = web.ToInt(response["gt"])
-	details.DW = web.ToInt(response["dw"])
-	details.DirectLink = directLink(details.Name, details.IMO, mmsi)
-	details.Draught = web.ToFloat64(response["draught"]) / 10
-	details.Year = web.ToInt(response["y"])
-	details.Length = web.ToInt(response["al"])
-	details.Beam = web.ToInt(response["aw"])
-	details.ShipCourse = web.ToFloat64(response["cu"])
-	details.Speed = web.ToFloat64(response["ss"])
-
-	if !seen {
-		// fmt.Printf("Found: %s %-25s %s\n", details.MMSI, details.Name, decodeMmsi(details.MMSI))
-	}
-
-	database.SaveShip(details)
-
-	return details, true
 }
 
 // visibleFromApt returns a bool indicating whether the ship is visible
@@ -441,131 +126,6 @@ func visibleFromApt(lat, lon float64) bool {
 	}
 
 	return true
-}
-
-// getUInt16 converts an array of two bytes to a unit16.
-func getUInt16(buf string) (uint16, error) {
-	if len(buf) != 2 {
-		return 0, fmt.Errorf("String length must be exactly 2. Found: %v", len(buf))
-	}
-	return uint16(buf[0])<<8 | uint16(buf[1]), nil
-}
-
-// getInt32 converts an array of four bytes to an int32.
-func getInt32(buf string) (int32, error) {
-	if len(buf) != 4 {
-		return 0, fmt.Errorf("String length must be exactly 4. Found: %v", len(buf))
-	}
-	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3]), nil
-}
-
-// shipsInRegion returns the ships found in a given lat/lon area via a channel.
-func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
-	defer close(c)
-
-	// Convert to minutes and trunc after 4 decimal places
-	latAs := strconv.Itoa(int(math.Trunc(latA * 600000)))
-	lonAs := strconv.Itoa(int(math.Trunc(lonA * 600000)))
-	latBs := strconv.Itoa(int(math.Trunc(latB * 600000)))
-	lonBs := strconv.Itoa(int(math.Trunc(lonB * 600000)))
-
-	url := "https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1"
-
-	region := web.Request(url)
-	if len(region) < 4 || region[0:4] != "CECP" {
-		fmt.Println("Unexpected data returned from web.Request(): ", region)
-		return
-	}
-
-	// Skip over the "CECP" magic bytes
-	region = region[4:]
-
-	// Parse each ship from the list. The list is a binary structure containing:
-	//   ??
-	//   mmsi
-	//   lat
-	//   lon
-	//   len(name)
-	//   name
-
-	for i := 0; i < len(region); {
-		// I do not know what these values represent. The VesselFinder
-		// website unpacks them and names them thusly, but gives no
-		// hint as to their meaning.
-		//
-		//  111111
-		//  54321098 76543210
-		//  --------+--------
-		// |OOGGGGGG|zzzz    |
-		//  --------+--------
-		// V := getUInt16(region[i:i+2])
-		// i += 2
-		// z := (V & 0xF0) >> 4
-		// G := (V & 0x3F00) >> 8
-		// O := 1
-		// if V & 0xC000 == 0xC000 {
-		// 	O = 2
-		// }
-		// if V & 0xC000 == 0x8000 {
-		// 	O = 0
-		// }
-		// fmt.Println("z =", z)
-		// fmt.Println("G =", G)
-		// fmt.Println("O =", O)
-		//
-		// Until we can figure out the contents of these first two
-		// bytes, skip over them.
-		i += 2
-
-		val, err := getInt32(region[i : i+4])
-		if err != nil {
-			fmt.Println("Error unpacking MMSI:", err)
-			break
-		}
-		mmsi := fmt.Sprintf("%09d", val)
-		err = validateMmsi(mmsi)
-		if err != nil {
-			fmt.Println(err)
-			fmt.Printf("Raw data: 0x%x 0x%x 0x%x 0x%x\n", region[i], region[i+1], region[i+2], region[i+3])
-			break
-		}
-		i += 4
-
-		val, err = getInt32(region[i : i+4])
-		if err != nil {
-			fmt.Println("Error unpacking lat:", err)
-			break
-		}
-		lat := float64(val) / 600000.0
-		i += 4
-
-		val, err = getInt32(region[i : i+4])
-		if err != nil {
-			fmt.Println("Error unpacking lon:", err)
-			break
-		}
-		lon := float64(val) / 600000.0
-		i += 4
-
-		nameLen := int(region[i])
-		i++
-
-		if i+nameLen > len(region) {
-			fmt.Println("Ran off of end of data:", mmsi, nameLen, region[i:])
-			break
-		}
-
-		name := region[i : i+nameLen]
-		i += nameLen
-
-		details, ok := getShipDetails(mmsi, name, lat, lon)
-		if !ok {
-			continue
-		}
-
-		// Push 'details' to channel.
-		c <- details
-	}
 }
 
 // lookAtShips looks for interesting ships in a given lat/lon region.
@@ -792,7 +352,13 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	geoAPIKey = aes.Decrypt(geoAPIKeyCrypt, *passPhrase)
+	var err error
+
+	geoAPIKey, err = aes.Decrypt(geoAPIKeyCrypt, *passPhrase)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	myLat, myLon = myGeo()
 
 	beepspeak.InitSay(gcpAuthCrypt, *passPhrase)
