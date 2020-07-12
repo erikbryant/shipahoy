@@ -1,7 +1,8 @@
-package shipahoy
+package vesselfinder
 
 import (
 	"fmt"
+	"github.com/erikbryant/shipahoy/aismmsi"
 	"github.com/erikbryant/shipahoy/database"
 	"github.com/erikbryant/web"
 	"math"
@@ -25,8 +26,8 @@ func getInt32(buf string) (int32, error) {
 	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3]), nil
 }
 
-// shipsInRegion returns the ships found in a given lat/lon area via a channel.
-func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
+// ShipsInRegion returns the ships found in a given lat/lon area via a channel.
+func ShipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 	defer close(c)
 
 	// Convert to minutes and trunc after 4 decimal places
@@ -93,7 +94,7 @@ func shipsInRegion(latA, lonA, latB, lonB float64, c chan database.Ship) {
 			break
 		}
 		mmsi := fmt.Sprintf("%09d", val)
-		err = validateMmsi(mmsi)
+		err = aismmsi.ValidateMmsi(mmsi)
 		if err != nil {
 			fmt.Println(err)
 			fmt.Printf("Raw data: 0x%x 0x%x 0x%x 0x%x\n", region[i], region[i+1], region[i+2], region[i+3])
@@ -154,7 +155,7 @@ func directLink(name, imo, mmsi string) string {
 func getShipDetails(mmsi string, name string, lat, lon float64) (database.Ship, bool) {
 	details, seen := database.LookupShip(mmsi)
 
-	err := validateMmsi(mmsi)
+	err := aismmsi.ValidateMmsi(mmsi)
 	if err != nil {
 		fmt.Println(err)
 		return details, false

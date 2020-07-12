@@ -1,4 +1,4 @@
-package shipahoy
+package vesselfinder
 
 import (
 	"testing"

@@ -27,9 +27,15 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	shipahoy.Start(*passPhrase)
+	err := shipahoy.Start(*passPhrase)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	defer shipahoy.Stop()
 
+	// Only run the profile for a short while.
 	if *cpuprofile != "" {
 		time.Sleep(3 * 60 * time.Second)
 		os.Exit(0)

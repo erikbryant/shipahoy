@@ -1,4 +1,4 @@
-package shipahoy
+package aismmsi
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func TestValidateMmsi(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		err := validateMmsi(testCase.mmsi)
+		err := ValidateMmsi(testCase.mmsi)
 		isValid := err == nil
 		if isValid != testCase.valid {
 			t.Errorf("ERROR: For %v expected %v, got %v", testCase.mmsi, testCase.valid, isValid)
@@ -62,7 +62,7 @@ func TestDecodeMmsi(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		answer := decodeMmsi(testCase.mmsi)
+		answer := DecodeMmsi(testCase.mmsi)
 		if answer != testCase.expected {
 			t.Errorf("ERROR: For %v expected %v, got %v", testCase.mmsi, testCase.expected, answer)
 		}

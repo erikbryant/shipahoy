@@ -1,4 +1,4 @@
-package shipahoy
+package alert
 
 // $ apt install libasound2-dev
 
@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/erikbryant/beepspeak"
+	"github.com/erikbryant/shipahoy/aismmsi"
 	"github.com/erikbryant/shipahoy/database"
 	"math"
 	"strings"
@@ -61,12 +62,12 @@ func prettify(i interface{}) string {
 	return string(s)
 }
 
-// alert prints a message and plays an alert tone.
-func alert(details database.Ship) {
+// Alert prints a message and plays an alert tone.
+func Alert(details database.Ship) {
 	fmt.Printf(
 		"\nShip Ahoy!  %s  %s\n%+v\n\n",
 		time.Now().Format("Mon Jan 2 15:04:05"),
-		decodeMmsi(details.MMSI),
+		aismmsi.DecodeMmsi(details.MMSI),
 		prettify(details),
 	)
 

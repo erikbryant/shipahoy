@@ -9,7 +9,6 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -70,13 +69,11 @@ var (
 )
 
 // Open opens a connection to the database.
-func Open() {
+func Open() error {
 	var err error
 
 	db, err = sql.Open("mysql", "ships:shipspassword@tcp(127.0.0.1:3306)/ship_ahoy")
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	return err
 }
 
 // Close closes the connection to the database opened by Open.

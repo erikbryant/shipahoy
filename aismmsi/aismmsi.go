@@ -1,4 +1,4 @@
-package shipahoy
+package aismmsi
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// validateMmsi tests whether an MMSI is valid.
-func validateMmsi(mmsi string) error {
+// ValidateMmsi tests whether an MMSI is valid.
+func ValidateMmsi(mmsi string) error {
 	if len(mmsi) != 9 {
 		return fmt.Errorf("MMSI length != 9: %s", mmsi)
 	}
@@ -23,9 +23,9 @@ func validateMmsi(mmsi string) error {
 	return nil
 }
 
-// decodeMmsi returns a string describing the data encoded in the given MMSI.
-func decodeMmsi(mmsi string) string {
-	err := validateMmsi(mmsi)
+// DecodeMmsi returns a string describing the data encoded in the given MMSI.
+func DecodeMmsi(mmsi string) string {
+	err := ValidateMmsi(mmsi)
 	if err != nil {
 		fmt.Println(err)
 		return ""

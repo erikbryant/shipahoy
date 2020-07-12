@@ -1,3 +1,3 @@
-package shipahoy
+package noaa
 
 // TODO: write tests

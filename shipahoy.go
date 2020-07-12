@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"github.com/erikbryant/aes"
 	"github.com/erikbryant/beepspeak"
+	"github.com/erikbryant/shipahoy/alert"
 	"github.com/erikbryant/shipahoy/database"
+	"github.com/erikbryant/shipahoy/noaa"
+	"github.com/erikbryant/shipahoy/vesselfinder"
 	"github.com/erikbryant/web"
 	"math/rand"
 	"strconv"
@@ -123,7 +126,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 	// Open channel
 	c := make(chan database.Ship, 10)
 
-	go shipsInRegion(latA, lonA, latB, lonB, c)
+	go vesselfinder.ShipsInRegion(latA, lonA, latB, lonB, c)
 
 	// Read from channel
 	for {
@@ -162,7 +165,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 
 		// We have passed all the tests! Save and alert.
 		database.SaveSighting(details, myLat, myLon)
-		alert(details)
+		alert.Alert(details)
 	}
 }
 
@@ -193,7 +196,7 @@ func scanNearby(sleepSecs time.Duration) {
 	c := make(chan database.Ship, 10)
 
 	for {
-		go shipsInRegion(latA, lonA, latB, lonB, c)
+		go vesselfinder.ShipsInRegion(latA, lonA, latB, lonB, c)
 
 		// Read from channel.
 		for {
@@ -234,7 +237,7 @@ func scanPlanet(sleepSecs time.Duration) {
 		// Open channel.
 		c := make(chan database.Ship, 10)
 
-		go shipsInRegion(latA, lonA, latB, lonB, c)
+		go vesselfinder.ShipsInRegion(latA, lonA, latB, lonB, c)
 
 		// Read from channel.
 		for {
@@ -248,67 +251,25 @@ func scanPlanet(sleepSecs time.Duration) {
 	}
 }
 
-// noaaReading reads one datum from a given NOAA station.
-func noaaReading(url string, reading *database.NoaaDatum) bool {
-	response, err := web.RequestJSON(url)
-	if err != nil {
-		fmt.Println("Error getting data: ", err)
-		return false
-	}
-	if response["error"] != nil {
-		fmt.Println("Error reading data: ", response["error"])
-		return false
-	}
-	data := response["data"].([]interface{})[0].(map[string]interface{})
-	reading.Value = data["v"].(string)
-	reading.S = data["s"].(string)
-	reading.Flags = data["f"].(string)
-	return true
-}
-
 // tides looks up instantaneous tide data for a given NOAA station.
 func tides(sleepSecs time.Duration) {
-	reading := database.NoaaDatum{
-		Station: "9414290",
-		Product: "water_level",
-		Datum:   "mllw",
-	}
-
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
-
 	for {
-		// Sleep at the start of the loop to avoid spamming the API
-		// in the case where the API is returning errors
-		time.Sleep(sleepSecs)
-
-		ok := noaaReading(url, &reading)
-		if !ok {
-			continue
+		reading, ok := noaa.Tides("9414290")
+		if ok {
+			fmt.Println("Reading:", reading)
 		}
-		fmt.Println("Reading:", reading)
+		time.Sleep(sleepSecs)
 	}
 }
 
 // airGap looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
 func airGap(sleepSecs time.Duration) {
-	reading := database.NoaaDatum{
-		Station: "9414304",
-		Product: "air_gap",
-		Datum:   "mllw",
-	}
-
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
-
 	for {
-		// Sleep at the start of the loop to avoid spamming the API
-		// in the case where the API is returning errors
-		time.Sleep(sleepSecs)
-
-		ok := noaaReading(url, &reading)
-		if !ok {
-			continue
+		reading, ok := noaa.AirGap("9414304")
+		if ok {
+			fmt.Println("Reading:", reading)
 		}
-		fmt.Println("Reading:", reading)
+		time.Sleep(sleepSecs)
 	}
 }
 
@@ -330,20 +291,24 @@ func dbStats(sleepSecs time.Duration) {
 	}
 }
 
-// Start is the entry point for the shipsahoy module. It starts each of the scanners.
-func Start(passPhrase string) {
-	var err error
+// Start is the entry point for the shipahoy module. It starts each of the scanners.
+func Start(passPhrase string) error {
+	err := database.Open()
+	if err != nil {
+		return err
+	}
 
 	geoAPIKey, err = aes.Decrypt(geoAPIKeyCrypt, passPhrase)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
+
+	err = beepspeak.InitSay(gcpAuthCrypt, passPhrase)
+	if err != nil {
+		return err
+	}
+
 	myLat, myLon = myGeo()
-
-	beepspeak.InitSay(gcpAuthCrypt, passPhrase)
-
-	database.Open()
 
 	// go scanNearby(5 * 60 * time.Second)
 	go scanAptVisible(2 * 60 * time.Second)
@@ -351,9 +316,11 @@ func Start(passPhrase string) {
 	go tides(10 * 60 * time.Second)
 	go airGap(10 * 60 * time.Second)
 	go dbStats(10 * 60 * time.Second)
+
+	return nil
 }
 
-// Stop stops each of the scanners and performs any needed shutdown.
+// Stop performs any needed shutdown.
 func Stop() {
 	database.Close()
 }
