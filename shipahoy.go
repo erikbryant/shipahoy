@@ -165,7 +165,11 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 
 		// We have passed all the tests! Save and alert.
 		database.SaveSighting(details, myLat, myLon)
-		alert.Alert(details)
+		err := alert.Alert(details)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
 }
 

@@ -63,7 +63,7 @@ func prettify(i interface{}) string {
 }
 
 // Alert prints a message and plays an alert tone.
-func Alert(details database.Ship) {
+func Alert(details database.Ship) error {
 	fmt.Printf(
 		"\nShip Ahoy!  %s  %s\n%+v\n\n",
 		time.Now().Format("Mon Jan 2 15:04:05"),
@@ -71,12 +71,17 @@ func Alert(details database.Ship) {
 		prettify(details),
 	)
 
+	var sound string
 	if strings.Contains(strings.ToLower(details.Type), "vehicle") {
-		beepspeak.Play("meep.wav")
+		sound = "meep.wav"
 	} else if strings.Contains(strings.ToLower(details.Type), "pilot") {
-		beepspeak.Play("pilot.mp3")
+		sound = "pilot.mp3"
 	} else {
-		beepspeak.Play("ship_horn.mp3")
+		sound = "ship_horn.mp3"
+	}
+	err := beepspeak.Play(sound)
+	if err != nil {
+		return err
 	}
 
 	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %s degrees.", details.Name, details.Type, readableCourse(details.ShipCourse))
@@ -97,5 +102,10 @@ func Alert(details database.Ship) {
 		summary = fmt.Sprintf("%s %d previous sightings.", summary, details.Sightings)
 	}
 
-	beepspeak.Say(summary)
+	err = beepspeak.Say(summary)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

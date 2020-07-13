@@ -12,7 +12,7 @@ import (
 
 var (
 	cpuprofile = flag.String("cpuprofile", "", "Enable profiling and write cpu profile to file")
-	passPhrase = flag.String("passPhrase", "", "Passphrase to unlock API key")
+	passPhrase = flag.String("passPhrase", "", "Passphrase to unlock API key(s)")
 )
 
 func main() {
