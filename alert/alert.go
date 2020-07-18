@@ -25,6 +25,9 @@ func readable(text string) string {
 
 	// Specific ships we have seen that read poorly.
 	text = strings.ReplaceAll(text, "SEASPAN HAMBURG", "SEA SPAN HAMBURG")
+	text = strings.ReplaceAll(text, "RO-ROZAFER", "RO-RO ZAFER")
+	text = strings.ReplaceAll(text, "RO-RO ", "ROW ROW ")
+	text = strings.ReplaceAll(text, "ERISORT", "AIRY SORT")
 
 	return text
 }
