@@ -77,9 +77,9 @@ func Alert(details database.Ship) error {
 	} else if strings.Contains(strings.ToLower(details.Type), "pilot") {
 		sound = "pilot.mp3"
 	} else {
-		sound = "ship_horn.mp3"
+		sound = "horn.mp3"
 	}
-	err := beepspeak.Play(sound)
+	err := beepspeak.Play("./alert/" + sound)
 	if err != nil {
 		return err
 	}
