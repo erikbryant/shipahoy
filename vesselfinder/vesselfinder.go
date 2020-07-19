@@ -71,6 +71,8 @@ func ShipsInRegion(latA, lonA, latB, lonB float64, c chan map[string]interface{}
 	//   len(name)
 	//   name
 
+	// TODO: Make the forward indexing safer. We have seen cases
+	// where the data is truncated and we index off of the end.
 	for i := 0; i < len(region); {
 		// I do not know what the first two bytes represent. The VesselFinder
 		// website unpacks them and names them thusly, but gives no hint as
