@@ -81,15 +81,18 @@ func ShipsInRegion(latA, lonA, latB, lonB float64, c chan map[string]interface{}
 		//  --------+--------
 		// |OOGGGGGG|zzzz    |
 		//  --------+--------
-		// V := getUInt16(region[i:i+2])
-		// i += 2
+		// V, err := getUInt16(region[i : i+2])
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	break
+		// }
 		// z := (V & 0xF0) >> 4
 		// G := (V & 0x3F00) >> 8
 		// O := 1
-		// if V & 0xC000 == 0xC000 {
+		// if V&0xC000 == 0xC000 {
 		// 	O = 2
 		// }
-		// if V & 0xC000 == 0x8000 {
+		// if V&0xC000 == 0x8000 {
 		// 	O = 0
 		// }
 		// fmt.Println("z =", z, "G =", G, "O =", O)
@@ -183,35 +186,6 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 		return nil, false
 	}
 
-	// Example response
-	//
-	// https://www.vesselfinder.com/api/pub/click/367003250
-	// {
-	// 	".ns": 0,
-	// 	"a2": "us",               country of register (abbrv)
-	// 	"al": 19,                 length
-	// 	"aw": 8,                  width
-	// 	"country": "USA",         country of register
-	// 	"cu": 246.7,              course
-	// 	"dest": "FALSE RIVER",    destination
-	// 	"draught": 33,            draught
-	// 	"dw": 0,                  deadweight
-	// 	"etaTS": 1588620600,      ETA timestamp
-	// 	"gt": 0,                  gross tonnage
-	// 	"imo": 0,                 imo number
-	// 	"lc.": 0,                 load condition(???)
-	// 	"m9": 0,
-	// 	"name": "SARAH REED",     name
-	// 	"pic": "0-367003250-cf317c76a96fd9b9f5ae4679c64bd065", // path to thumbnail image https://static.vesselfinder.net/ship-photo/0-367003250-cf317c76a96fd9b9f5ae4679c64bd065/0
-	// 	"r": 2,
-	// 	"sc.": 0,                 status: 0=underway, 1=at anchor, 2=at anchor
-	// 	"sl": false,              newer position available via satellite?
-	// 	"ss": 0.1,                speed (knots)
-	// 	"ts": 1587883051          timestamp (of position received?)
-	// 	"type": "Towing vessel",  AIS type
-	// 	"y": 0,                   year built
-	// }
-
 	// So far, we have only seen 0, 1, and 2. If we get any other values we
 	// should alert on that.
 	if web.ToInt(response["sc."]) > 2 || web.ToInt(response["sc."]) < 0 {
@@ -226,8 +200,7 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 	}
 
 	// I suspect that lc. is a sub-status of sc. That is, if sc. is != 0
-	// (that is, the ship is at anchor) lc. will contain the details about
-	// why sc. is not zero.
+	// (ship at anchor) lc. will contain the details about why sc. is not zero.
 	if web.ToInt(response["lc."]) > 0 && web.ToInt(response["sc."]) < 1 {
 		fmt.Println("################# lc. > 0 && sc. < 1")
 		fmt.Println(directLink(web.ToString(response["name"]), web.ToString(response["imo"]), mmsi))
@@ -243,19 +216,6 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 	// other values.
 	if web.ToInt(response["m9"]) != 0 || web.ToInt(response["r"]) != 2 {
 		fmt.Println("################# m9 != 0 || r != 2")
-		fmt.Println(directLink(web.ToString(response["name"]), web.ToString(response["imo"]), mmsi))
-		fmt.Printf("  .ns: %d 0x%x\n", web.ToInt(response[".ns"]), web.ToInt(response[".ns"]))
-		fmt.Printf("  lc.: %d 0x%x\n", web.ToInt(response["lc."]), web.ToInt(response["lc."]))
-		fmt.Println("   m9:", response["m9"])
-		fmt.Println("    r:", response["r"])
-		fmt.Println("  sc.:", response["sc."])
-		fmt.Println()
-	}
-
-	// What are all the possible values for .ns?
-	ns := web.ToInt(response[".ns"])
-	if ns != 15 && (ns < -1 || ns > 12) {
-		fmt.Println("################# ns not in [-1..12, 15]")
 		fmt.Println(directLink(web.ToString(response["name"]), web.ToString(response["imo"]), mmsi))
 		fmt.Printf("  .ns: %d 0x%x\n", web.ToInt(response[".ns"]), web.ToInt(response[".ns"]))
 		fmt.Printf("  lc.: %d 0x%x\n", web.ToInt(response["lc."]), web.ToInt(response["lc."]))
