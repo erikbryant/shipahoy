@@ -7,11 +7,16 @@ Our apartment looks over part of the San Francisco bay. Alert if a ship of inter
 
 # Implementation Notes and Background
 
+Encyclopedia of Marine Terms https://www.wartsila.com/encyclopedia/term/standard-loading-conditions
+
 Most recent ports of call.
 https://www.vesselfinder.com/api/pro/portcalls/538007561?s
 
 AIS vessel types.
 https://help.marinetraffic.com/hc/en-us/articles/205579997-What-is-the-significance-of-the-AIS-Shiptype-number-
+
+AIS raw data format.
+https://www.navcen.uscg.gov/?pageName=AISMessagesA
 
 MMSI format.
 https://www.navcen.uscg.gov/index.php?pageName=mtMmsi
@@ -28,70 +33,71 @@ http://www.mmsispace.com/common/getdetails_v3.php?mmsi=369083000
 Lat Lon calc.
 https://www.movable-type.co.uk/scripts/latlong.html
 
-# Data Requests
+# VesselFinder REST API Data Requests
 
-These may be a little stale. Check the database for the latest schema.
+Ships in a region response record from VesselFinder. The list is a binary structure.
 
-```
-Ships in a region response record (from VesselFinder):
- 22235849   -- lat * 600000
- 522        -- lon * 600000
- 683        -- Course *10
- 117        -- Speed * 10
- 280        -- ais
- 249857000  -- mmsi
- WAIKIKI    -- Ship name
- 0          -- unknown
+GET https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=-73581179%2C22791346%2C-73451814%2C22982834&zoom=12&mmsi=0&ref=20639.80311629575&show_names=1
+
+* Header bytes: `CECP`
+* One packed record per ship:
+  * 2 bytes: (unknown what these are)
+  * 4 bytes: mmsi
+  * 4 bytes: lat
+  * 4 bytes: lon
+  * 1 bytes: len(name)
+  * n bytes: name
 
 MMSI data of a given ship
-{
- 'imo': '9776755',
- 'name': 'WAIKIKI',
- 'type': 'Crude Oil Tanker',
- 't': '1531634521',
- 'sar': False,
- 'dest': 'MALTA',
- 'etastamp': 'Jul 19, 12:00',
- 'ship_speed': 11.7,
- 'ship_course': 68.3,
- 'timestamp': 'Jul 15, 2018 06:02 UTC',
- '__id': '309251',
- 'pn': '9776755-249857000-6d17e98fedf50ed074675bd8f3396cd5',
- 'vo': 0,
- 'ff': False,
- 'direct_link': '/vessels/WAIKIKI-IMO-9776755-MMSI-249857000',
- 'draught': 8.8,
- 'year': '2017',
- 'gt': '61468',
- 'sizes': '250 x 44 m',
- 'dw': '112829'
-}
 
-Data query to ship_ahoy.ships
+```text
+GET https://www.vesselfinder.com/api/pub/click/367003250
 {
- 'mmsi': '374518000',
- 'imo': '8687218',
- 'name': 'DONG HONG HANG 2',
- 'ais': 170,
- 'type': 'Bulk Carrier',
- 'sar': 0,
- '__id': '0',
- 'vo': 0,
- 'ff': 0,
- 'direct_link': '/vessels/DONG-HONG-HANG-2-IMO-8687218-MMSI-374518000',
- 'draught': 5.0,
- 'year': 2011,
- 'gt': 8465,
- 'sizes': '137 x 20 m',
- 'length': 137,
- 'beam': 20,
- 'dw': 13685,
+  ".ns": 0,                 navigational status
+                              0 = under way using engine
+                              1 = at anchor
+                              2 = not under command
+                              3 = restricted maneuverability
+                              4 = constrained by her draught
+                              5 = moored
+                              6 = aground
+                              7 = engaged in fishing
+                              8 = under way sailing
+                              9 = reserved for future amendment of navigational status for ships carrying DG, HS, or MP, or IMO hazard or pollutant category C, high speed craft (HSC)
+                              10 = reserved for future amendment of navigational status for ships carrying dangerous goods (DG), harmful substances (HS) or marine pollutants (MP), or IMO hazard or pollutant category A, wing in ground (WIG)
+                              11 = power-driven vessel towing astern (regional use)
+                              12 = power-driven vessel pushing ahead or towing alongside (regional use)
+                              13 = reserved for future use
+                              14 = AIS-SART (active), MOB-AIS, EPIRB-AIS
+                              15 = undefined = default (also used by AIS-SART, MOB-AIS and EPIRB-AIS under test)
+  "a2": "us",               country of register (abbrv)
+  "al": 19,                 length
+  "aw": 8,                  width
+  "country": "USA",         country of register
+  "cu": 246.7,              course
+  "dest": "FALSE RIVER",    destination
+  "draught": 33,            draught
+  "dw": 0,                  deadweight
+  "etaTS": 1588620600,      ETA timestamp
+  "gt": 0,                  gross tonnage
+  "imo": 0,                 imo number
+  "lc.": 0,                 load condition(???)
+  "m9": 0,
+  "name": "SARAH REED",     name
+  "pic": "0-367003250-...", path to thumbnail image https://static.vesselfinder.net/ship-photo/0-367003250-cf317c76a96fd9b9f5ae4679c64bd065/0
+  "r": 2,
+  "sc.": 0,                 status: 0=underway, 1=at anchor, 2=at anchor(?)
+  "sl": false,              newer position available via satellite?
+  "ss": 0.1,                speed (knots)
+  "ts": 1587883051          timestamp (of position received?)
+  "type": "Towing vessel",  AIS type
+  "y": 0,                   year built
 }
 ```
 
 # SQL statements
 
-```
+```sql
 CREATE TABLE ships (
     mmsi varchar(20),
     imo varchar(20),
@@ -143,9 +149,9 @@ CREATE TABLE ships (
  );
 ```
 
-# Backup / Restore
+# Database Backup / Restore
 
-```
+```sh
 mysqldump -u ships -p db_name t1 > dump.sql
 mysql -u ships -p db_name < dump.sql
 ```
@@ -161,7 +167,8 @@ Bay Bridge Air Gap sensors https://tidesandcurrents.noaa.gov/map/index.html?id=9
 Example queries
 
 https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=datums&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
-```
+
+```xml
 <data>
 <datum n="MHHW" v="11.817"/>
 <datum n="MHW" v="11.208"/>
@@ -183,7 +190,8 @@ https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&pro
 ## Mean Lower Low Water for Presidio
 
 https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=water_level&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
-```
+
+```xml
 <data>
 <metadata id="9414290" name="San Francisco" lat="37.8063" lon="-122.4659"/>
 <observations>
@@ -195,7 +203,8 @@ https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&pro
 ## Air gap for Bay Bridge D-E span
 
 https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414304&product=air_gap&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
-```
+
+```xml
 <data>
 <metadata id="9414304" name="San Francisco-Oakland Bay Bridge Air Gap" lat="37.8044" lon="-122.3728"/>
 <observations>
