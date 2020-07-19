@@ -57,6 +57,7 @@ var (
 		"338303816": true, // Coastal 24
 		"319421001": true, // RIB 45
 		"338099564": true, // Wings
+		"338365361": true, // 15R2 (SAR)
 	}
 )
 
@@ -232,8 +233,8 @@ func scanPlanet(sleepSecs time.Duration) {
 	for {
 		// Pick a random lat/lon box on the surface of the planet.
 		step := 10
-		lonA := float64(rand.Intn(360-step) - 180)
 		latA := float64(rand.Intn(360-step) - 180)
+		lonA := float64(rand.Intn(360-step) - 180)
 
 		latB := latA + float64(step)
 		lonB := lonA + float64(step)
