@@ -147,6 +147,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		details.Lon = web.ToFloat64(response["lon"])
 		details.MMSI = web.ToString(response["mmsi"])
 		details.Name = web.ToString(response["name"])
+		details.NavigationalStatus = web.ToInt(response[".ns"])
 		details.ShipCourse = web.ToFloat64(response["cu"])
 		details.Speed = web.ToFloat64(response["ss"])
 		details.Type = web.ToString(response["type"])
@@ -160,7 +161,10 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		}
 
 		// Only alert for ships that are moving.
-		if details.Speed < 2.0 {
+		switch details.NavigationalStatus {
+		case 1: // at anchor
+			continue
+		case 5: // moored
 			continue
 		}
 

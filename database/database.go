@@ -35,22 +35,24 @@ type Ship struct {
 	unknown    int // unused
 
 	// Not stored in db ...
-	Lat        float64
-	Lon        float64
-	ShipCourse float64
-	Speed      float64
-	Sightings  int64
+	Lat                float64
+	Lon                float64
+	ShipCourse         float64
+	Speed              float64
+	Sightings          int64
+	NavigationalStatus int
 }
 
 // Sighting holds the relevant information about a ship sighting.
 type Sighting struct {
-	MMSI       string
-	ShipCourse float64
-	Timestamp  int64
-	Lat        float64
-	Lon        float64
-	MyLat      float64
-	MyLon      float64
+	MMSI               string
+	ShipCourse         float64
+	Timestamp          int64
+	Lat                float64
+	Lon                float64
+	MyLat              float64
+	MyLon              float64
+	NavigationalStatus int64
 }
 
 // NoaaDatum holds the information we get back from the NOAA web service.

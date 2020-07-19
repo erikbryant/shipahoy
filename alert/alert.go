@@ -96,6 +96,25 @@ func Alert(details database.Ship) error {
 		summary = fmt.Sprintf("%s Speed %3.1f knots.", summary, details.Speed)
 	}
 
+	switch details.NavigationalStatus {
+	case 2:
+		summary += "Not under command. "
+	case 3:
+		summary += "Restricted maneuverability. "
+	case 4:
+		summary += "Constrained by her draught. "
+	case 6:
+		summary += "Aground. "
+	case 7:
+		summary += "Engaged in fishing. "
+	case 11:
+		summary += "Power-driven vessel towing astern. "
+	case 12:
+		summary += "Power-driven vessel pushing ahead or towing alongside. "
+	case 14:
+		summary += "AIS-SART, MOB-AIS, or EPIRB-AIS. "
+	}
+
 	switch details.Sightings {
 	case 0:
 		summary = fmt.Sprintf("%s This is the first sighting.", summary)
