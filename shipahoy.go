@@ -122,17 +122,37 @@ func visibleFromApt(lat, lon float64) bool {
 // lookAtShips looks for interesting ships in a given lat/lon region.
 func lookAtShips(latA, lonA, latB, lonB float64) {
 	// Open channel
-	c := make(chan database.Ship, 10)
+	c := make(chan map[string]interface{}, 10)
 
 	go vesselfinder.ShipsInRegion(latA, lonA, latB, lonB, c)
 
 	// Read from channel
 	for {
-		// Read 'details' from channel.
-		details, ok := <-c
+		// Read 'response' from channel.
+		response, ok := <-c
 		if !ok {
 			break
 		}
+
+		details, _ := database.LookupShip(web.ToString(response["mmsi"]))
+
+		details.Beam = web.ToInt(response["aw"])
+		details.DW = web.ToInt(response["dw"])
+		details.DirectLink = web.ToString(response["directLink"])
+		details.Draught = web.ToFloat64(response["draught"]) / 10
+		details.GT = web.ToInt(response["gt"])
+		details.IMO = web.ToString(response["imo"])
+		details.Lat = web.ToFloat64(response["lat"])
+		details.Length = web.ToInt(response["al"])
+		details.Lon = web.ToFloat64(response["lon"])
+		details.MMSI = web.ToString(response["mmsi"])
+		details.Name = web.ToString(response["name"])
+		details.ShipCourse = web.ToFloat64(response["cu"])
+		details.Speed = web.ToFloat64(response["ss"])
+		details.Type = web.ToString(response["type"])
+		details.Year = web.ToInt(response["y"])
+
+		database.SaveShip(details)
 
 		// Only alert for ships visible from our apartment.
 		if !visibleFromApt(details.Lat, details.Lon) {
