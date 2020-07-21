@@ -96,6 +96,7 @@ func Alert(details database.Ship) error {
 		summary = fmt.Sprintf("%s Speed %3.1f knots.", summary, details.Speed)
 	}
 
+	// Read out interesting navigational statuses.
 	switch details.NavigationalStatus {
 	case 2:
 		summary += "Not under command. "
@@ -117,9 +118,9 @@ func Alert(details database.Ship) error {
 
 	switch details.Sightings {
 	case 0:
-		summary = fmt.Sprintf("%s This is the first sighting.", summary)
+		summary += "This is the first sighting. "
 	case 1:
-		summary = fmt.Sprintf("%s One previous sighting.", summary)
+		summary += "One previous sighting. "
 	default:
 		summary = fmt.Sprintf("%s %d previous sightings.", summary, details.Sightings)
 	}
