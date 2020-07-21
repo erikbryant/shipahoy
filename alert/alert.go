@@ -28,6 +28,7 @@ func readable(text string) string {
 	text = strings.ReplaceAll(text, "RO-ROZAFER", "RO-RO ZAFER")
 	text = strings.ReplaceAll(text, "RO-RO ", "ROW ROW ")
 	text = strings.ReplaceAll(text, "ERISORT", "AIRY SORT")
+	text = strings.ReplaceAll(text, "T0WBOATUS_ALAMEDA", "TOWBOAT U S ALAMEDA")
 
 	return text
 }
