@@ -188,6 +188,13 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 		return nil, false
 	}
 
+	if web.ToInt(response[".ns"]) < 0 {
+		// We sometimes get -1 back from VesselFinder. That is not a valid
+		// navigational status. On the VesselFinder website they show the
+		// ship as 'at anchor', so we will do the same thing.
+		response[".ns"] = 1
+	}
+
 	// So far, we have only seen 0, 1, and 2. Alert if there are any other values.
 	if web.ToInt(response["sc."]) > 2 || web.ToInt(response["sc."]) < 0 {
 		fmt.Println("################# sc. > 2 || sc. < 0")
