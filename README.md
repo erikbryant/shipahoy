@@ -48,12 +48,13 @@ GET https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=-73581179%2C22791346%
   * 1 bytes: len(name)
   * n bytes: name
 
-MMSI data of a given ship
+VesselFinder can also return detailed information about a given MMSI.
 
 ```text
 GET https://www.vesselfinder.com/api/pub/click/367003250
 {
   ".ns": 0,                 navigational status
+                             -1 = not defined in the spec, but VesselFinder has used it
                               0 = under way using engine
                               1 = at anchor
                               2 = not under command
@@ -89,7 +90,7 @@ GET https://www.vesselfinder.com/api/pub/click/367003250
   "sc.": 0,                 status: 0=underway, 1=at anchor, 2=at anchor(?)
   "sl": false,              newer position available via satellite?
   "ss": 0.1,                speed (knots)
-  "ts": 1587883051          timestamp (of position received?)
+  "ts": 1587883051          timestamp of last position received
   "type": "Towing vessel",  AIS type
   "y": 0,                   year built
 }
