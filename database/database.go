@@ -41,6 +41,7 @@ type Ship struct {
 	Speed              float64
 	Sightings          int64
 	NavigationalStatus int
+	LastPosUpdate      int
 }
 
 // Sighting holds the relevant information about a ship sighting.
