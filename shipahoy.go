@@ -31,9 +31,9 @@ var (
 		"Passenger Ship": true,
 		"Pleasure craft": true,
 		"Sailing vessel": true,
-		"Towing vessel":  true,
-		"Tug":            true,
-		"Unknown":        true,
+		// "Towing vessel":  true,
+		// "Tug":            true,
+		// "Unknown":        true,
 	}
 
 	uninterestingMMSI = map[string]bool{
@@ -55,6 +55,9 @@ var (
 		"319421001": true, // RIB 45
 		"338099564": true, // Wings
 		"338365361": true, // 15R2 (SAR)
+		"338194748": true, // Kranich
+		"367310560": true, // Kitty Kat
+		"319762000": true, // M/Y SAINT NICOLAS
 	}
 )
 
@@ -142,6 +145,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 		details.Draught = web.ToFloat64(response["draught"]) / 10
 		details.GT = web.ToInt(response["gt"])
 		details.IMO = web.ToString(response["imo"])
+		details.LastPosUpdate = web.ToInt(response["ts"])
 		details.Lat = web.ToFloat64(response["lat"])
 		details.Length = web.ToInt(response["al"])
 		details.Lon = web.ToFloat64(response["lon"])
@@ -155,20 +159,33 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 
 		database.SaveShip(details)
 
-		// Only alert for ships visible from our apartment.
+		// Ignore ships that are not visible from our apartment.
 		if !visibleFromApt(details.Lat, details.Lon) {
 			continue
 		}
 
-		// Only alert for ships that are moving.
+		// Ignore ships that have stale position data.
+		posAge := time.Now().Unix() - int64(details.LastPosUpdate)
+		if posAge > 60*30 { // 30 minutes
+			continue
+		}
+
+		// Ignore ships that are not moving.
 		switch details.NavigationalStatus {
+		case 0: // under way using engine
+			if details.Speed < 1.0 {
+				continue
+			}
 		case 1: // at anchor
 			continue
 		case 5: // moored
 			continue
+		case 15: // undefined / default
+			if details.Speed < 1.0 {
+				continue
+			}
 		}
 
-		// Always show interesting ships.
 		if !interestingMMSI[details.MMSI] {
 			// Skip uninteresting ships.
 			if uninterestingAIS[details.Type] || uninterestingMMSI[details.MMSI] {
