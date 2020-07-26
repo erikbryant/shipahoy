@@ -195,52 +195,10 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 		response[".ns"] = 1
 	}
 
-	// So far, we have only seen 0, 1, and 2. Alert if there are any other values.
-	if web.ToInt(response["sc."]) > 2 || web.ToInt(response["sc."]) < 0 {
-		fmt.Println("################# sc. > 2 || sc. < 0")
-		fmt.Println(directLink(web.ToString(response["name"]), web.ToString(response["imo"]), mmsi))
-		fmt.Println("  .ns:", response[".ns"])
-		fmt.Println("  lc.:", response["lc."])
-		fmt.Println("   m9:", response["m9"])
-		fmt.Println("    r:", response["r"])
-		fmt.Println("  sc.:", response["sc."])
-		fmt.Println()
-	}
-
-	// I suspect that lc. is a sub-status of sc. That is, if sc. is != 0
-	// (ship at anchor) lc. will contain the details about why sc. is not zero.
-	if web.ToInt(response["lc."]) > 0 && web.ToInt(response["sc."]) < 1 {
-		fmt.Println("################# lc. > 0 && sc. < 1")
-		fmt.Println(directLink(web.ToString(response["name"]), web.ToString(response["imo"]), mmsi))
-		fmt.Println("  .ns:", response[".ns"])
-		fmt.Println("  lc.:", response["lc."])
-		fmt.Println("   m9:", response["m9"])
-		fmt.Println("    r:", response["r"])
-		fmt.Println("  sc.:", response["sc."])
-		fmt.Println()
-	}
-
-	// So far, we have only see m9==0 and r==2. Alert if there are any
-	// other values.
-	if web.ToInt(response["m9"]) != 0 || web.ToInt(response["r"]) != 2 {
-		fmt.Println("################# m9 != 0 || r != 2")
-		fmt.Println(directLink(web.ToString(response["name"]), web.ToString(response["imo"]), mmsi))
-		fmt.Printf("  .ns: %d 0x%x\n", web.ToInt(response[".ns"]), web.ToInt(response[".ns"]))
-		fmt.Printf("  lc.: %d 0x%x\n", web.ToInt(response["lc."]), web.ToInt(response["lc."]))
-		fmt.Println("   m9:", response["m9"])
-		fmt.Println("    r:", response["r"])
-		fmt.Println("  sc.:", response["sc."])
-		fmt.Println()
-	}
-
 	if mmsi == "319762000" && web.ToFloat64(response["ss"]) > 100.0 {
 		// The M/Y SAINT NICHOLAS sometimes reports bad AIS data.
-		// It takes the form of course: 360, speed: 102.3
+		// It takes the form of course: 360, speed: 102.3, status: at anchor.
 		// Ignore those reports.
-		fmt.Println("################### M/Y has high speed... what is her 'sc.'?")
-		fmt.Println(directLink(web.ToString(response["name"]), web.ToString(response["imo"]), mmsi))
-		fmt.Println(prettify(response))
-		fmt.Println()
 		return nil, false
 	}
 
