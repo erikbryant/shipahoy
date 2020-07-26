@@ -188,6 +188,15 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 		return nil, false
 	}
 
+	if response[".ns"] == nil {
+		// We saw one case where this was nil. See if we can catch
+		// it again. Otherwise, the program crashes trying to convert
+		// nil to an int.
+		fmt.Println(".ns is nil")
+		fmt.Println(prettify(response))
+		return nil, false
+	}
+
 	if web.ToInt(response[".ns"]) < 0 {
 		// We sometimes get -1 back from VesselFinder. That is not a valid
 		// navigational status. On the VesselFinder website they show the
