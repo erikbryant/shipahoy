@@ -16,6 +16,8 @@ import (
 // readable makes a string more human readable by removing all non alphanumeric and non-punctuation.
 func readable(text string) string {
 	text = strings.TrimSpace(text)
+
+	// Symbols do not usually read well.
 	text = strings.ReplaceAll(text, "_", " ")
 	text = strings.ReplaceAll(text, "/", "")
 	text = strings.ReplaceAll(text, "^", "")
@@ -28,7 +30,7 @@ func readable(text string) string {
 	text = strings.ReplaceAll(text, "RO-ROZAFER", "RO-RO ZAFER")
 	text = strings.ReplaceAll(text, "RO-RO ", "ROW ROW ")
 	text = strings.ReplaceAll(text, "ERISORT", "AIRY SORT")
-	text = strings.ReplaceAll(text, "T0WBOATUS_ALAMEDA", "TOWBOAT U S ALAMEDA")
+	text = strings.ReplaceAll(text, "T0WBOATUS_ALAMEDA", "TOW BOAT U S ALAMEDA")
 
 	return text
 }
@@ -92,9 +94,9 @@ func Alert(details database.Ship) error {
 
 	// Hearing, "eleven point zero knots" sounds awkward. Remove the "point zero".
 	if math.Trunc(details.Speed) == details.Speed {
-		summary = fmt.Sprintf("%s Speed %3.0f knots.", summary, math.Trunc(details.Speed))
+		summary = fmt.Sprintf("%s Speed %3.0f knots. ", summary, math.Trunc(details.Speed))
 	} else {
-		summary = fmt.Sprintf("%s Speed %3.1f knots.", summary, details.Speed)
+		summary = fmt.Sprintf("%s Speed %3.1f knots. ", summary, details.Speed)
 	}
 
 	// Read out interesting navigational statuses.
