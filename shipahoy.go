@@ -193,6 +193,20 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 			}
 		}
 
+		// Tugs are only interesting if they are towing.
+		if details.Type == "Towing vessel" || details.Type == "Tug" {
+			switch details.NavigationalStatus {
+			case 0: // under way using engine
+				continue
+			case 1: // at anchor
+				continue
+			case 5: // moored
+				continue
+			case 15: // undefined / default
+				continue
+			}
+		}
+
 		// If we have recently seen this ship, skip it.
 		now := time.Now().Unix()
 		elapsed := now - database.LookupLastSighting(details)
@@ -291,15 +305,14 @@ func airGap(sleepSecs time.Duration, station string) {
 // dbStats prints interesting statistics about the size of the database.
 func dbStats(sleepSecs time.Duration) {
 	for {
-		stats := database.TableStats()
+		msg := ""
 
-		if len(stats) > 0 {
-			msg := "## "
-			for table, count := range stats {
-				msg += table + ": " + strconv.FormatInt(count, 10) + " "
-			}
-			msg += "##"
-			fmt.Println(msg)
+		for table, count := range database.TableStats() {
+			msg += table + ": " + strconv.FormatInt(count, 10) + " "
+		}
+
+		if msg != "" {
+			fmt.Println("##", msg, "##")
 		}
 
 		time.Sleep(sleepSecs)
@@ -324,7 +337,7 @@ func Start(passPhrase string) error {
 	}
 
 	// go scanNearby(5 * 60 * time.Second)
-	go scanAptVisible(2 * 60 * time.Second)
+	go scanAptVisible(1 * 60 * time.Second)
 	go scanPlanet(2 * 60 * time.Second)
 	go tides(10*60*time.Second, "9414290")
 	go airGap(10*60*time.Second, "9414304")
