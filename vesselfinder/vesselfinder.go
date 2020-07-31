@@ -189,11 +189,8 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 	}
 
 	if response[".ns"] == nil {
-		// We saw one case where this was nil. See if we can catch
-		// it again. Otherwise, the program crashes trying to convert
-		// nil to an int.
-		fmt.Println(".ns is nil")
-		fmt.Println(prettify(response))
+		// Sometimes '.ns' is returned as nil. If so, the whole
+		// response is garbage.
 		return nil, false
 	}
 
