@@ -57,7 +57,6 @@ var (
 		"338365361": true, // 15R2 (SAR)
 		"338194748": true, // Kranich
 		"367310560": true, // Kitty Kat
-		"319762000": true, // M/Y SAINT NICOLAS
 	}
 )
 
