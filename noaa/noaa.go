@@ -7,15 +7,22 @@ import (
 )
 
 // noaaReading reads one datum from a given NOAA station.
-func noaaReading(url string, reading database.NoaaDatum) (database.NoaaDatum, bool) {
+func noaaReading(station, product, datum string) (database.NoaaDatum, bool) {
+	reading := database.NoaaDatum{
+		Station: station,
+		Product: product,
+		Datum:   datum,
+	}
+	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
+
 	response, err := web.RequestJSON(url)
 	if err != nil {
-		fmt.Println("Error getting data: ", reading, err)
+		fmt.Println("Error getting", reading, err, response)
 		return reading, false
 	}
 
 	if response["error"] != nil {
-		fmt.Println("Error reading data: ", reading, response["error"])
+		fmt.Println("Error reading", reading, response["error"])
 		return reading, false
 	}
 
@@ -29,24 +36,10 @@ func noaaReading(url string, reading database.NoaaDatum) (database.NoaaDatum, bo
 
 // Tides looks up instantaneous tide data for a given NOAA station.
 func Tides(station string) (database.NoaaDatum, bool) {
-	reading := database.NoaaDatum{
-		Station: station,
-		Product: "water_level",
-		Datum:   "mllw",
-	}
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
-
-	return noaaReading(url, reading)
+	return noaaReading(station, "water_level", "mllw")
 }
 
 // AirGap looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
 func AirGap(station string) (database.NoaaDatum, bool) {
-	reading := database.NoaaDatum{
-		Station: station,
-		Product: "air_gap",
-		Datum:   "mllw",
-	}
-	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
-
-	return noaaReading(url, reading)
+	return noaaReading(station, "air_gap", "mllw")
 }
