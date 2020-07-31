@@ -31,6 +31,7 @@ func readable(text string) string {
 	text = strings.ReplaceAll(text, "RO-RO ", "ROW ROW ")
 	text = strings.ReplaceAll(text, "ERISORT", "AIRY SORT")
 	text = strings.ReplaceAll(text, "T0WBOATUS_ALAMEDA", "TOW BOAT U S ALAMEDA")
+	text = strings.ReplaceAll(text, "SAILDRONE", "SAIL DRONE")
 
 	return text
 }
