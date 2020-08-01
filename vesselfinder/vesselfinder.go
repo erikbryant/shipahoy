@@ -50,7 +50,7 @@ func ShipsInRegion(latA, lonA, latB, lonB float64, c chan map[string]interface{}
 
 	url := "https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1"
 
-	region, err := web.Request(url)
+	region, err := web.Request(url, map[string]string{})
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -183,7 +183,7 @@ func getShipDetails(mmsi string) (map[string]interface{}, bool) {
 	}
 
 	mmsiURL := "https://www.vesselfinder.com/api/pub/click/" + mmsi
-	response, err := web.RequestJSON(mmsiURL)
+	response, err := web.RequestJSON(mmsiURL, map[string]string{})
 	if err != nil || response == nil {
 		return nil, false
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/erikbryant/beepspeak"
 	"github.com/erikbryant/shipahoy/alert"
 	"github.com/erikbryant/shipahoy/database"
+	"github.com/erikbryant/shipahoy/marinetraffic"
 	"github.com/erikbryant/shipahoy/noaa"
 	"github.com/erikbryant/shipahoy/vesselfinder"
 	"github.com/erikbryant/web"
@@ -68,7 +69,7 @@ func init() {
 // myGeo returns the lat/lon pair of the location of the computer running this program.
 func myGeo() (lat, lon float64) {
 	// myIP := web.Request("http://ifconfig.co/ip") <-- site has malware
-	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key=" + geoAPIKey)
+	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key="+geoAPIKey, map[string]string{})
 	if err != nil {
 		fmt.Println("ERROR: Unable to get geo location. Assuming you are home. Message:", err)
 		return 37.8007, -122.4097
@@ -334,6 +335,8 @@ func Start(passPhrase string) error {
 	if err != nil {
 		return err
 	}
+
+	marinetraffic.Look()
 
 	// go scanNearby(5 * 60 * time.Second)
 	go scanAptVisible(1 * 60 * time.Second)

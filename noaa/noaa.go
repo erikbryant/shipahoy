@@ -15,7 +15,7 @@ func noaaReading(station, product, datum string) (database.NoaaDatum, bool) {
 	}
 	url := "https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=" + reading.Station + "&product=" + reading.Product + "&datum=" + reading.Datum + "&units=english&time_zone=lst_ldt&application=erikbryantology@gmail.com&format=json"
 
-	response, err := web.RequestJSON(url)
+	response, err := web.RequestJSON(url, map[string]string{})
 	if err != nil {
 		fmt.Println("Error getting", reading, err, response)
 		return reading, false
