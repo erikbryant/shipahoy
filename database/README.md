@@ -2,31 +2,22 @@
 
 ```sql
 CREATE TABLE ships (
-    mmsi varchar(20),
-    imo varchar(20),
-    name varchar(128),
-    ais int,
-    type varchar(128),
-    -- t unixtimestamp,
-    sar boolean,
-    -- dest varchar(255),
-    -- etastamp 'Jun 21, 07:30',
-    -- ship_speed float,
-    -- ship_course float,
-    -- timestamp 'Jun 27, 2018 17:48 UTC',
-    __id varchar(20),
-    -- pn varchar(255),  -- '0-227616590-808bd5b15abc2089364f4d3ccf1e13d6'
-    vo int,
-    ff boolean,
-    direct_link varchar(128),
-    draught float,
-    year int,
-    gt int,
-    sizes varchar(50),
+    mmsi varchar(20) not null,
+    imo varchar(20) not null,
+    name varchar(40) not null,
+    ais int not null,
+    type varchar(128) not null,
+    sar boolean not null,
+    direct_link varchar(128) not null,
+    draught float not null,
+    year int not null,
+    gt int not null,
     length int not null,
     beam int not null,
-    dw int,
-    unknown int
+    dw int not null,
+    flag varchar(20) not null,
+    invalidDimensions boolean not null,
+    marineTrafficID int not null,
  );
 
  CREATE UNIQUE INDEX mmsi ON ships ( mmsi );
@@ -37,7 +28,7 @@ CREATE TABLE ships (
  ALTER TABLE ships ADD ais int AFTER name;
 
  UPDATE ships SET length = 0 WHERE length IS NULL;
- ALTER TABLE ships MODIFY length INT NOT NULL;
+ ALTER TABLE ships MODIFY length int NOT NULL;
 
  ALTER TABLE ships DROP COLUMN unknown;
 

@@ -15,33 +15,36 @@ import (
 // Ship holds all the information we get back from the web service about a single ship.
 type Ship struct {
 	// Stored in db ...
-	MMSI       string
-	IMO        string
-	Name       string
-	AIS        int // not currently available
-	Type       string
-	SAR        bool
-	ID         string // deprecated
-	VO         int    // deprecated
-	FF         bool   // deprecated
-	DirectLink string
-	Draught    float64
-	Year       int
-	GT         int
-	Sizes      string // deprecated
-	Length     int
-	Beam       int
-	DW         int
-	unknown    int // unused
+	MMSI              string
+	IMO               string
+	Name              string
+	AIS               int // not currently available
+	Type              string
+	SAR               bool
+	DirectLink        string
+	Draught           float64
+	Year              int
+	GT                int
+	Length            int
+	Beam              int
+	DW                int
+	Flag              string
+	InvalidDimensions bool
+	MarineTrafficID   int64
 
 	// Not stored in db ...
 	Lat                float64
 	Lon                float64
-	ShipCourse         float64
+	Course             float64
+	Heading            float64
 	Speed              float64
 	Sightings          int64
 	NavigationalStatus int
 	LastPosUpdate      int
+	RateOfTurn         int
+	Destination        string
+	ETA                int64
+	LoadCondition      int
 }
 
 // Sighting holds the relevant information about a ship sighting.
@@ -86,9 +89,9 @@ func Close() {
 
 // SaveShip writes ship details to the database.
 func SaveShip(details Ship) {
-	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, __id, vo, ff, direct_link, draught, year, gt, sizes, length, beam, dw ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
+	sqlString := "INSERT IGNORE INTO ships ( mmsi, imo, name, ais, Type, sar, direct_link, draught, year, gt, length, beam, dw, flag, invalidDimensions, marineTrafficID ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"
 
-	_, err := db.Exec(sqlString, details.MMSI, details.IMO, details.Name, details.AIS, details.Type, details.SAR, details.ID, details.VO, details.FF, details.DirectLink, details.Draught, details.Year, details.GT, details.Sizes, details.Length, details.Beam, details.DW)
+	_, err := db.Exec(sqlString, details.MMSI, details.IMO, details.Name, details.AIS, details.Type, details.SAR, details.DirectLink, details.Draught, details.Year, details.GT, details.Length, details.Beam, details.DW, details.Flag, details.InvalidDimensions, details.MarineTrafficID)
 	if err != nil {
 		fmt.Println("dbSaveShip Exec:", err)
 	}
@@ -101,7 +104,7 @@ func LookupShip(mmsi string) (Ship, bool) {
 	sqlString := "SELECT * FROM ships WHERE mmsi = " + mmsi + " LIMIT 1"
 
 	rows := db.QueryRow(sqlString)
-	err := rows.Scan(&details.MMSI, &details.IMO, &details.Name, &details.AIS, &details.Type, &details.SAR, &details.ID, &details.VO, &details.FF, &details.DirectLink, &details.Draught, &details.Year, &details.GT, &details.Sizes, &details.Length, &details.Beam, &details.DW)
+	err := rows.Scan(&details.MMSI, &details.IMO, &details.Name, &details.AIS, &details.Type, &details.SAR, &details.DirectLink, &details.Draught, &details.Year, &details.GT, &details.Length, &details.Beam, &details.DW, &details.Flag, &details.InvalidDimensions, &details.MarineTrafficID)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			fmt.Println("lookup_ship Scan:", err)
@@ -136,7 +139,7 @@ func LookupShipExists(mmsi string) bool {
 func SaveSighting(details Ship, myLat, myLon float64) {
 	sqlString := "INSERT IGNORE INTO sightings ( mmsi, ship_course, timestamp, lat, lon, my_lat, my_lon ) VALUES ( ?, ?, ?, ?, ?, ?, ?)"
 
-	_, err := db.Exec(sqlString, details.MMSI, details.ShipCourse, time.Now().Unix(), details.Lat, details.Lon, myLat, myLon)
+	_, err := db.Exec(sqlString, details.MMSI, details.Course, time.Now().Unix(), details.Lat, details.Lon, myLat, myLon)
 	if err != nil {
 		fmt.Println("dbSaveSighting Exec:", err)
 	}

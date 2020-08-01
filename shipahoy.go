@@ -6,11 +6,13 @@ import (
 	"github.com/erikbryant/beepspeak"
 	"github.com/erikbryant/shipahoy/alert"
 	"github.com/erikbryant/shipahoy/database"
+	"github.com/erikbryant/shipahoy/marinetraffic"
 	"github.com/erikbryant/shipahoy/noaa"
 	"github.com/erikbryant/shipahoy/vesselfinder"
 	"github.com/erikbryant/web"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -121,41 +123,74 @@ func visibleFromApt(lat, lon float64) bool {
 	return true
 }
 
+// hydrate consolidates ship information from multiple sources
+func hydrate(vfDetails map[string]interface{}, mtDetails []map[string]string) database.Ship {
+	// Load any details we might already have.
+	details, _ := database.LookupShip(web.ToString(vfDetails["mmsi"]))
+
+	// Add fields from VesselFinder.
+	details.Beam = web.ToInt(vfDetails["aw"])
+	details.DW = web.ToInt(vfDetails["dw"])
+	details.DirectLink = web.ToString(vfDetails["directLink"])
+	details.Draught = web.ToFloat64(vfDetails["draught"]) / 10
+	details.GT = web.ToInt(vfDetails["gt"])
+	details.IMO = web.ToString(vfDetails["imo"])
+	details.LastPosUpdate = web.ToInt(vfDetails["ts"])
+	details.Lat = web.ToFloat64(vfDetails["lat"])
+	details.Length = web.ToInt(vfDetails["al"])
+	details.Lon = web.ToFloat64(vfDetails["lon"])
+	details.MMSI = web.ToString(vfDetails["mmsi"])
+	details.Name = web.ToString(vfDetails["name"])
+	details.NavigationalStatus = web.ToInt(vfDetails[".ns"])
+	details.Course = web.ToFloat64(vfDetails["cu"])
+	details.Speed = web.ToFloat64(vfDetails["ss"])
+	details.Type = web.ToString(vfDetails["type"])
+	details.Year = web.ToInt(vfDetails["y"])
+	// New fields
+	details.Flag = web.ToString(vfDetails["a2"])
+	details.Destination = web.ToString(vfDetails["dest"])
+	details.ETA = web.ToInt64(vfDetails["etaTS"])
+	details.LoadCondition = web.ToInt(vfDetails["lc."])
+	// details.InvalidDimensions
+	// details.MarineTrafficID
+	// details.RateOfTurn
+	// details.Heading
+
+	// Add fields from MarineTraffic.
+	for _, ship := range mtDetails {
+		if strings.ToUpper(ship["SHIPNAME"]) == strings.ToUpper(details.Name) &&
+			strings.ToUpper(ship["FLAG"]) == strings.ToUpper(details.Flag) {
+			details.InvalidDimensions = web.ToInt(ship["INVALID_DIMENSIONS"]) == 1
+			details.MarineTrafficID = web.ToInt64(ship["SHIP_ID"])
+			details.RateOfTurn = web.ToInt(ship["ROT"])
+			details.Heading = web.ToFloat64(ship["HEADING"])
+		}
+	}
+
+	return details
+}
+
 // lookAtShips looks for interesting ships in a given lat/lon region.
 func lookAtShips(latA, lonA, latB, lonB float64) {
 	// Open channel
 	c := make(chan map[string]interface{}, 10)
 
+	// Get the MarineTraffic details for this area.
+	mtResponse, err := marinetraffic.ShipsInRegion("1309", "3165", "14")
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	go vesselfinder.ShipsInRegion(latA, lonA, latB, lonB, c)
 
-	// Read from channel
 	for {
 		// Read 'response' from channel.
-		response, ok := <-c
+		vfResponse, ok := <-c
 		if !ok {
 			break
 		}
 
-		details, _ := database.LookupShip(web.ToString(response["mmsi"]))
-
-		details.Beam = web.ToInt(response["aw"])
-		details.DW = web.ToInt(response["dw"])
-		details.DirectLink = web.ToString(response["directLink"])
-		details.Draught = web.ToFloat64(response["draught"]) / 10
-		details.GT = web.ToInt(response["gt"])
-		details.IMO = web.ToString(response["imo"])
-		details.LastPosUpdate = web.ToInt(response["ts"])
-		details.Lat = web.ToFloat64(response["lat"])
-		details.Length = web.ToInt(response["al"])
-		details.Lon = web.ToFloat64(response["lon"])
-		details.MMSI = web.ToString(response["mmsi"])
-		details.Name = web.ToString(response["name"])
-		details.NavigationalStatus = web.ToInt(response[".ns"])
-		details.ShipCourse = web.ToFloat64(response["cu"])
-		details.Speed = web.ToFloat64(response["ss"])
-		details.Type = web.ToString(response["type"])
-		details.Year = web.ToInt(response["y"])
-
+		details := hydrate(vfResponse, mtResponse)
 		database.SaveShip(details)
 
 		// Ignore ships that are not visible from our apartment.

@@ -33,6 +33,7 @@ func readableName(text string) string {
 	text = strings.ReplaceAll(text, "T0WBOATUS_ALAMEDA", "TOW BOAT U S ALAMEDA")
 	text = strings.ReplaceAll(text, "SAILDRONE", "SAIL DRONE")
 	text = strings.ReplaceAll(text, "JOHNZIPSER", "JOHN ZIPSER")
+	text = strings.ReplaceAll(text, "EKSPRES", "EXPRESS")
 
 	return text
 }
@@ -92,7 +93,7 @@ func Alert(details database.Ship) error {
 		return err
 	}
 
-	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %s degrees.", readableName(details.Name), details.Type, readableCourse(details.ShipCourse))
+	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %s degrees.", readableName(details.Name), details.Type, readableCourse(details.Course))
 
 	// Hearing, "eleven point zero knots" sounds awkward. Remove the "point zero".
 	if math.Trunc(details.Speed) == details.Speed {
