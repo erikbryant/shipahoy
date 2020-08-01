@@ -6,7 +6,6 @@ import (
 	"github.com/erikbryant/beepspeak"
 	"github.com/erikbryant/shipahoy/alert"
 	"github.com/erikbryant/shipahoy/database"
-	"github.com/erikbryant/shipahoy/marinetraffic"
 	"github.com/erikbryant/shipahoy/noaa"
 	"github.com/erikbryant/shipahoy/vesselfinder"
 	"github.com/erikbryant/web"
