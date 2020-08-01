@@ -336,8 +336,6 @@ func Start(passPhrase string) error {
 		return err
 	}
 
-	marinetraffic.Look()
-
 	// go scanNearby(5 * 60 * time.Second)
 	go scanAptVisible(1 * 60 * time.Second)
 	go scanPlanet(2 * 60 * time.Second)
