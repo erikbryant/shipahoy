@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// readable makes a string more human readable by removing all non alphanumeric and non-punctuation.
-func readable(text string) string {
+// readableName makes a string more human readable by removing all non alphanumeric and non-punctuation.
+func readableName(text string) string {
 	text = strings.TrimSpace(text)
 
 	// Symbols do not usually read well.
@@ -91,7 +91,7 @@ func Alert(details database.Ship) error {
 		return err
 	}
 
-	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %s degrees.", details.Name, details.Type, readableCourse(details.ShipCourse))
+	summary := fmt.Sprintf("Ship ahoy! %s. %s. Course %s degrees.", readableName(details.Name), details.Type, readableCourse(details.ShipCourse))
 
 	// Hearing, "eleven point zero knots" sounds awkward. Remove the "point zero".
 	if math.Trunc(details.Speed) == details.Speed {
