@@ -24,7 +24,7 @@ var (
 
 	interestingMMSI = map[string]bool{
 		"338691000": true, // Matthew Turner
-		"338359786": true, // Randy S Cummings (associated with Pacific Responder?)
+		"338359786": true, // Randy S Cummings (USACE, associated with Pacific Responder?)
 	}
 
 	uninterestingAIS = map[string]bool{
