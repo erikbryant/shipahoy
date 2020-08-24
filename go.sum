@@ -50,6 +50,8 @@ github.com/erikbryant/beepspeak v0.3.0 h1:kJ+mzhYsMGXN4ITD3qDiVtIkkAqUytlNcGfYSe
 github.com/erikbryant/beepspeak v0.3.0/go.mod h1:YIDhxaQOHisaCUFybI04VMbkvOt/fiaQzNAS+JlsfNc=
 github.com/erikbryant/web v0.3.0 h1:N9J2TRJjO6wlDlqPURR9+xau7WR51Q9/2hj7/UpOanQ=
 github.com/erikbryant/web v0.3.0/go.mod h1:COKnbDhT4/QO3SrM93Emm6rm6R/Q/SjAmJrc1TLslWs=
+github.com/erikbryant/web v0.5.0 h1:qDN0qsCuRn5Fv4RHzGWKqi8HaEd24gtZNANEsXTcHnY=
+github.com/erikbryant/web v0.5.0/go.mod h1:COKnbDhT4/QO3SrM93Emm6rm6R/Q/SjAmJrc1TLslWs=
 github.com/faiface/beep v1.0.3-0.20200712202812-d836f29bdc50 h1:nW1/uI5xoR3xXmSR0YewPa+xYNi/YRF2hGjY+VAEeeQ=
 github.com/faiface/beep v1.0.3-0.20200712202812-d836f29bdc50/go.mod h1:nv+7LjRrok3sDtIZN8d405o60tIHcrrKlRCtxl41fEU=
 github.com/gdamore/encoding v1.0.0/go.mod h1:alR0ol34c49FCSBLjhosxzcPHQbf2trDkoo5dl+VrEg=
