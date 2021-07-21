@@ -59,6 +59,10 @@ var (
 		"338365361": true, // 15R2 (SAR)
 		"338194748": true, // Kranich
 		"367310560": true, // Kitty Kat
+		"366975760": true, // Royal Prince (Red & White ferry)
+		"538071541": true, // Miss Anna
+		"367773740": true, // Duet
+		"367654260": true, // Falcon
 	}
 )
 

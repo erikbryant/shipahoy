@@ -34,6 +34,7 @@ func readableName(text string) string {
 	text = strings.ReplaceAll(text, "SAILDRONE", "SAIL DRONE")
 	text = strings.ReplaceAll(text, "JOHNZIPSER", "JOHN ZIPSER")
 	text = strings.ReplaceAll(text, "EKSPRES", "EXPRESS")
+	// ASSATEAGUE
 
 	return text
 }
@@ -61,7 +62,7 @@ func readableCourse(heading float64) string {
 	return courseText
 }
 
-// prettify formats and prints the input.
+// prettify formats the input for printing.
 func prettify(i interface{}) string {
 	s, err := json.MarshalIndent(i, "", " ")
 	if err != nil {
