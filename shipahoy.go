@@ -154,7 +154,9 @@ func hydrate(vfDetails map[string]interface{}, mtDetails []map[string]string) da
 	details.Flag = web.ToString(vfDetails["a2"])
 	details.Destination = web.ToString(vfDetails["dest"])
 	details.ETA = web.ToInt64(vfDetails["etaTS"])
-	details.LoadCondition = web.ToInt(vfDetails["lc."])
+	if vfDetails["lc."] != nil {
+		details.LoadCondition = web.ToInt(vfDetails["lc."])
+	}
 	// details.InvalidDimensions
 	// details.MarineTrafficID
 	// details.RateOfTurn

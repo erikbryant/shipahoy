@@ -38,8 +38,11 @@ func ShipsInRegion(x, y, zoom string) ([]map[string]string, error) {
 	// Convert from nested interfaces to defined types.
 	var rowMap []map[string]string
 	for _, row := range rows {
-		newRow := make(map[string]string)
+		newRow := map[string]string{}
 		for key, value := range row.(map[string]interface{}) {
+			if value == nil {
+				continue
+			}
 			newRow[key] = web.ToString(value)
 		}
 		rowMap = append(rowMap, newRow)

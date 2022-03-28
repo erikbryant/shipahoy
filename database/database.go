@@ -210,7 +210,7 @@ func CountRows(table string) (int64, bool) {
 // TableStats prints interesting statistics about the size of the database.
 func TableStats() map[string]int64 {
 	tables := []string{"ships", "sightings"}
-	counts := make(map[string]int64)
+	counts := map[string]int64{}
 
 	for _, table := range tables {
 		count, ok := CountRows(table)
