@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/zsh -u
 
-for t in ships sightings; do
-    mysqldump -u ships -p ship_ahoy --no-tablespaces ${t} > ${t}.sql
-    gzip --best --force ${t}.sql
+for table in ships sightings; do
+  mysqldump --user=ships --password=ships_password ship_ahoy --no-tablespaces ${table} > ${table}.sql
+  gzip --best --force ${table}.sql
 done

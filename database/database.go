@@ -78,7 +78,7 @@ var (
 func Open() error {
 	var err error
 
-	db, err = sql.Open("mysql", "ships:shipspassword@tcp(127.0.0.1:3306)/ship_ahoy")
+	db, err = sql.Open("mysql", "ships:ships_password@tcp(127.0.0.1:3306)/ship_ahoy")
 	return err
 }
 

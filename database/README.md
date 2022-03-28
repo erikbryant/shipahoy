@@ -1,4 +1,21 @@
+# Installation
+
+This application stores ship sightings in an SQL database. You need to have one installed and listening on 127.0.0.1:3306. It has been developed and tested with [MySQL Community Server](https://dev.mysql.com/downloads/mysql/).
+
+To easily access the `mysql` binary, add `/usr/local/mysql/bin` to the path.
+
 # SQL statements
+
+If you already have restore files (`ships.sql.gz` and `sightings.sql.gz`) you can skip these steps. The `restore.sh` script will do these for you.
+
+```sql
+CREATE DATABASE IF NOT EXISTS ship_ahoy;
+```
+
+```sql
+CREATE USER IF NOT EXISTS 'ships'@'localhost' IDENTIFIED BY 'ships_password';
+GRANT ALL ON ship_ahoy.* TO 'ships';
+```
 
 ```sql
 CREATE TABLE ships (
@@ -23,12 +40,6 @@ CREATE TABLE ships (
  CREATE UNIQUE INDEX mmsi ON ships ( mmsi );
 
  DELETE FROM ships;
-
- ALTER TABLE ships MODIFY mmsi varchar(20);
- ALTER TABLE ships ADD ais int AFTER name;
-
- UPDATE ships SET length = 0 WHERE length IS NULL;
- ALTER TABLE ships MODIFY length int NOT NULL;
 
  ALTER TABLE ships DROP COLUMN unknown;
 

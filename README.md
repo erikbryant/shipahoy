@@ -32,3 +32,7 @@ http://www.mmsispace.com/common/getdetails_v3.php?mmsi=369083000
 
 Lat Lon calc.
 https://www.movable-type.co.uk/scripts/latlong.html
+
+# Installation
+
+Follow the instructions in the `database` directory to install and configure the database.
