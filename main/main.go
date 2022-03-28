@@ -1,5 +1,7 @@
 package main
 
+// go fmt && golint && go test && go run main/main.go -passPhrase XYZZY
+
 import (
 	"flag"
 	"fmt"
