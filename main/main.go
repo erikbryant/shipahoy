@@ -1,6 +1,6 @@
 package main
 
-// go fmt && golint && go test && go run main/main.go -passPhrase XYZZY
+// go fmt ./... && go vet ./... && go test && go run main/main.go -passPhrase XYZZY
 
 import (
 	"flag"
