@@ -1,3 +1,7 @@
+![go fmt](https://github.com/erikbryant/shipahoy/actions/workflows/fmt.yml/badge.svg)
+![go vet](https://github.com/erikbryant/shipahoy/actions/workflows/vet.yml/badge.svg)
+![go test](https://github.com/erikbryant/shipahoy/actions/workflows/test.yml/badge.svg)
+
 # shipahoy
 
 Alert when ships of interest are about to enter the part of the bay visible from our apartment.

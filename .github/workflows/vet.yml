@@ -1,0 +1,17 @@
+name: go vet
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Golang
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+    - name: Check out source code
+      uses: actions/checkout@v3
+    - name: Vet
+      run: |
+        go vet ./...
