@@ -10,6 +10,11 @@ jobs:
       uses: actions/setup-go@v3
       with:
         go-version: 1.19
+    - name: Install sound libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install libasound2-dev
+        sudo apt-get install libudev-dev
     - name: Check out source code
       uses: actions/checkout@v3
     - name: Test
