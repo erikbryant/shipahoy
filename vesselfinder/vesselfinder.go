@@ -10,20 +10,13 @@ import (
 	"strings"
 )
 
-// getUInt16 converts an array of two bytes to a unit16.
-func getUInt16(buf string) (uint16, error) {
-	if len(buf) != 2 {
-		return 0, fmt.Errorf("String length must be exactly 2. Found: %v", len(buf))
+// bytesToInt converts a string (taken as an array of bytes) to an int.
+func bytesToInt(buf string) int {
+	result := 0
+	for i := 0; i < len(buf); i++ {
+		result = result<<8 | int(buf[i])
 	}
-	return uint16(buf[0])<<8 | uint16(buf[1]), nil
-}
-
-// getInt32 converts an array of four bytes to an int32.
-func getInt32(buf string) (int32, error) {
-	if len(buf) != 4 {
-		return 0, fmt.Errorf("String length must be exactly 4. Found: %v", len(buf))
-	}
-	return int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3]), nil
+	return result
 }
 
 // directLink builds a link to details about a given ship.
@@ -48,101 +41,80 @@ func ShipsInRegion(latA, lonA, latB, lonB float64, c chan map[string]interface{}
 	latBs := strconv.Itoa(int(math.Trunc(latB * 600000)))
 	lonBs := strconv.Itoa(int(math.Trunc(lonB * 600000)))
 
-	url := "https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1"
+	url := "https://www.vesselfinder.com/api/pub/mp2?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1"
 
 	region, err := web.Request(url, map[string]string{})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	if len(region) < 4 || region[0:4] != "CECP" {
+	if len(region) < 4 {
+		fmt.Println("Too little data returned from web.Request(): ", region)
+		return
+	}
+	if region[0:2] != "CE" {
 		fmt.Println("Unexpected data returned from web.Request(): ", region)
 		return
 	}
 
-	// Skip over the "CECP" magic bytes
-	region = region[4:]
+	// Code adapted from the drawShipsOnMapBinary function found in
+	// https://static.vesselfinder.net/web/main3.js?4.22b1&v6
 
-	// Parse each ship from the list. The list is a binary structure containing:
-	//   ??
-	//   mmsi
-	//   lat
-	//   lon
-	//   len(name)
-	//   name
+	rLen := len(region)
 
-	// TODO: Make the forward indexing safer. We have seen cases
-	// where the data is truncated and we index off of the end.
-	for i := 0; i < len(region); {
-		// I do not know what the first two bytes represent. The VesselFinder
-		// website unpacks them and names them thusly, but gives no hint as
-		// to their meaning.
-		//
-		//  111111
-		//  54321098 76543210
-		//  --------+--------
-		// |OOGGGGGG|zzzz    |
-		//  --------+--------
-		// V, err := getUInt16(region[i : i+2])
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	break
-		// }
-		// z := (V & 0xF0) >> 4
-		// G := (V & 0x3F00) >> 8
-		// O := 1
-		// if V&0xC000 == 0xC000 {
-		// 	O = 2
-		// }
-		// if V&0xC000 == 0x8000 {
-		// 	O = 0
-		// }
-		// fmt.Println("z =", z, "G =", G, "O =", O)
-		//
-		// Until we can decode the contents of these first two bytes,
-		// skip over them.
+	offset := 0
+	if len(region) >= 12 {
+		offset = bytesToInt(region[2:3])
+	}
+
+	for i := 4 + offset; i < rLen; {
+		// Unknown what B means
+		B := bytesToInt(region[i : i+2])
 		i += 2
 
-		val, err := getInt32(region[i : i+4])
-		if err != nil {
-			fmt.Println("Error unpacking MMSI:", err)
-			break
-		}
-		mmsi := fmt.Sprintf("%09d", val)
-		err = aismmsi.ValidateMmsi(mmsi)
-		if err != nil {
-			fmt.Println(err)
-			fmt.Printf("Raw data: 0x%x 0x%x 0x%x 0x%x\n", region[i], region[i+1], region[i+2], region[i+3])
-			break
-		}
+		// The MMSI
+		mmsi := strconv.Itoa(bytesToInt(region[i : i+4]))
 		i += 4
 
-		val, err = getInt32(region[i : i+4])
-		if err != nil {
-			fmt.Println("Error unpacking lat:", err)
-			break
-		}
-		lat := float64(val) / 600000.0
+		// Lat/Lon
+		j := 600000.0
+		lat := float64(bytesToInt(region[i:i+4])) / j
+		i += 4
+		lon := float64(bytesToInt(region[i:i+4])) / j
 		i += 4
 
-		val, err = getInt32(region[i : i+4])
-		if err != nil {
-			fmt.Println("Error unpacking lon:", err)
+		// Unused
+		i += 1
+
+		// The ship's name (a counted string)
+		nameLen := bytesToInt(region[i : i+1])
+		i += 1
+		if i+nameLen > rLen {
 			break
 		}
-		lon := float64(val) / 600000.0
-		i += 4
-
-		nameLen := int(region[i])
-		i++
-
-		if i+nameLen > len(region) {
-			fmt.Println("Ran off of end of data:", mmsi, nameLen, region[i:])
-			break
+		// Default to MMSI
+		name := mmsi
+		if nameLen > 0 {
+			name = region[i : i+nameLen]
+			i += nameLen
 		}
 
-		name := region[i : i+nameLen]
-		i += nameLen
+		// Unknown what D means
+		D := false
+		if D {
+			// Unused
+			i += 2
+			i += 2
+			i += 2
+			i += 2
+			i += 2
+		}
+
+		re := (2 & B) != 0
+		if re && !D {
+			// Unused
+			i += 2
+		}
 
 		response, ok := getShipDetails(mmsi)
 		if !ok {

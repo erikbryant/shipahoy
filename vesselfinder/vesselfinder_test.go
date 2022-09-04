@@ -4,58 +4,33 @@ import (
 	"testing"
 )
 
-func TestGetUInt16(t *testing.T) {
+func TestBytesToInt(t *testing.T) {
 	testCases := []struct {
 		buf      string
-		expected uint16
-		error    bool
+		expected int
 	}{
-		{"\x00\x00", 0x0000, false},
-		{"\x00\x01", 0x0001, false},
-		{"\x01\x00", 0x0100, false},
-		{"\x7F\x7F", 0x7F7F, false},
-		{"\x80\x80", 0x8080, false},
-		{"\x80", 0x0000, true},
-		{"\x80\x80\x80", 0x0000, true},
+		{"\x00", 0x00},
+		{"\x01", 0x01},
+		{"\x00\x00", 0x0000},
+		{"\x00\x01", 0x0001},
+		{"\x01\x00", 0x0100},
+		{"\x7F\x7F", 0x7F7F},
+		{"\x80\x80", 0x8080},
+		{"\x00\x00\x00\x00", 0x00000000},
+		{"\x00\x00\x00\x01", 0x00000001},
+		{"\x00\x00\x01\x00", 0x00000100},
+		{"\x00\x01\x00\x00", 0x00010000},
+		{"\x01\x00\x00\x00", 0x01000000},
+		{"\x10\x00\x00\x00", 0x10000000},
+		{"\x00\x10\x00\x00", 0x00100000},
+		{"\x00\x00\x10\x00", 0x00001000},
+		{"\x00\x00\x00\x10", 0x00000010},
 	}
 
 	for _, testCase := range testCases {
-		answer, err := getUInt16(testCase.buf)
+		answer := bytesToInt(testCase.buf)
 		if answer != testCase.expected {
 			t.Errorf("ERROR: For %v expected %v, got %v", testCase.buf, testCase.expected, answer)
-		}
-		if (err != nil) != testCase.error {
-			t.Errorf("ERROR: For %v expected error to be %v, got %v", testCase.buf, testCase.error, err)
-		}
-	}
-}
-
-func TestGetInt32(t *testing.T) {
-	testCases := []struct {
-		buf      string
-		expected int32
-		error    bool
-	}{
-		{"\x00\x00\x00\x00", 0x00000000, false},
-		{"\x00\x00\x00\x01", 0x00000001, false},
-		{"\x00\x00\x01\x00", 0x00000100, false},
-		{"\x00\x01\x00\x00", 0x00010000, false},
-		{"\x01\x00\x00\x00", 0x01000000, false},
-		{"\x10\x00\x00\x00", 0x10000000, false},
-		{"\x00\x10\x00\x00", 0x00100000, false},
-		{"\x00\x00\x10\x00", 0x00001000, false},
-		{"\x00\x00\x00\x10", 0x00000010, false},
-		{"\x80\x80\x80", 0x0000, true},
-		{"\x80\x80\x80\x80\x80", 0x0000, true},
-	}
-
-	for _, testCase := range testCases {
-		answer, err := getInt32(testCase.buf)
-		if answer != testCase.expected {
-			t.Errorf("ERROR: For %v expected %v, got %v", testCase.buf, testCase.expected, answer)
-		}
-		if (err != nil) != testCase.error {
-			t.Errorf("ERROR: For %v expected error to be %v, got %v", testCase.buf, testCase.error, err)
 		}
 	}
 }
