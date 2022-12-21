@@ -23,7 +23,7 @@ require (
 	github.com/hajimehoshi/oto v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20221215174704-0915cd710c24 // indirect
+	golang.org/x/exp/shiny v0.0.0-20221217163422-3c43f8badb15 // indirect
 	golang.org/x/image v0.2.0 // indirect
 	golang.org/x/mobile v0.0.0-20221110043201-43a038452099 // indirect
 	golang.org/x/net v0.4.0 // indirect
