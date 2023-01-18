@@ -25,7 +25,7 @@ require (
 	github.com/hajimehoshi/oto v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20230113152452-c42ee1cf562e // indirect
+	golang.org/x/exp/shiny v0.0.0-20230116083435-1de6713980de // indirect
 	golang.org/x/image v0.3.0 // indirect
 	golang.org/x/mobile v0.0.0-20221110043201-43a038452099 // indirect
 	golang.org/x/net v0.5.0 // indirect
@@ -34,7 +34,7 @@ require (
 	golang.org/x/text v0.6.0 // indirect
 	google.golang.org/api v0.107.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20230113154510-dbe35b8444a5 // indirect
+	google.golang.org/genproto v0.0.0-20230117162540-28d6b9783ac4 // indirect
 	google.golang.org/grpc v1.52.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
