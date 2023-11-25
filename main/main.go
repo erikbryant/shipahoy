@@ -5,11 +5,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/erikbryant/shipahoy"
-	_ "github.com/go-sql-driver/mysql"
 	"os"
 	"runtime/pprof"
 	"time"
+
+	"github.com/erikbryant/shipahoy"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var (

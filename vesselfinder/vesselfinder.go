@@ -3,11 +3,12 @@ package vesselfinder
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/erikbryant/shipahoy/aismmsi"
-	"github.com/erikbryant/web"
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/erikbryant/shipahoy/aismmsi"
+	"github.com/erikbryant/web"
 )
 
 // bytesToInt converts a string (taken as an array of bytes) to an int.
@@ -136,7 +137,7 @@ func ShipsInRegion(latA, lonA, latB, lonB float64, c chan map[string]interface{}
 	}
 }
 
-// prettify formats and prints the input.
+// prettify returns the input formatted as a printable string.
 func prettify(i interface{}) string {
 	s, err := json.MarshalIndent(i, "", " ")
 	if err != nil {

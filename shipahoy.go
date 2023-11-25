@@ -2,6 +2,11 @@ package shipahoy
 
 import (
 	"fmt"
+	"math/rand"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/erikbryant/aes"
 	"github.com/erikbryant/beepspeak"
 	"github.com/erikbryant/shipahoy/alert"
@@ -10,10 +15,6 @@ import (
 	"github.com/erikbryant/shipahoy/noaa"
 	"github.com/erikbryant/shipahoy/vesselfinder"
 	"github.com/erikbryant/web"
-	"math/rand"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
@@ -121,6 +122,7 @@ func visibleFromApt(lat, lon float64) bool {
 	b := latC - m*lonC
 	y := m*lon + b
 	if lat > y {
+		fmt.Println("3   ", lat, m, b, y, lon)
 		return false
 	}
 
@@ -164,8 +166,8 @@ func hydrate(vfDetails map[string]interface{}, mtDetails []map[string]string) da
 
 	// Add fields from MarineTraffic.
 	for _, ship := range mtDetails {
-		if strings.ToUpper(ship["SHIPNAME"]) == strings.ToUpper(details.Name) &&
-			strings.ToUpper(ship["FLAG"]) == strings.ToUpper(details.Flag) {
+		if strings.EqualFold(ship["SHIPNAME"], details.Name) &&
+			strings.EqualFold(ship["FLAG"], details.Flag) {
 			details.InvalidDimensions = web.ToInt(ship["INVALID_DIMENSIONS"]) == 1
 			details.MarineTrafficID = web.ToInt64(ship["SHIP_ID"])
 			details.RateOfTurn = web.ToInt(ship["ROT"])
@@ -284,29 +286,29 @@ func box(lat, lon float64, nmiles float64) (latA, lonA, latB, lonB float64) {
 }
 
 // scanNearby continually scans for ships within a given radius of this computer.
-func scanNearby(sleepSecs time.Duration) {
+func scanNearby(sleepDuration time.Duration) {
 	for {
 		lat, lon := myGeo()
 		latA, lonA, latB, lonB := box(lat, lon, 30)
 
 		lookAtShips(latA, lonA, latB, lonB)
-		time.Sleep(sleepSecs)
+		time.Sleep(sleepDuration)
 	}
 }
 
 // scanAptVisible continually scans for ships visible from our apartment.
-func scanAptVisible(sleepSecs time.Duration) {
+func scanAptVisible(sleepDuration time.Duration) {
 	lat, lon := 37.82, -122.45 // Center of visible bay
 	latA, lonA, latB, lonB := box(lat, lon, 10)
 
 	for {
 		lookAtShips(latA, lonA, latB, lonB)
-		time.Sleep(sleepSecs)
+		time.Sleep(sleepDuration)
 	}
 }
 
 // scanPlanet continually scans the entire planet for heretofore unseen ships.
-func scanPlanet(sleepSecs time.Duration) {
+func scanPlanet(sleepDuration time.Duration) {
 	for {
 		// Pick a random lat/lon box of size 'step' on the surface of the planet.
 		step := 10
@@ -316,34 +318,34 @@ func scanPlanet(sleepSecs time.Duration) {
 		lonB := lonA + float64(step)
 
 		lookAtShips(latA, lonA, latB, lonB)
-		time.Sleep(sleepSecs)
+		time.Sleep(sleepDuration)
 	}
 }
 
 // tides looks up instantaneous tide data for a given NOAA station.
-func tides(sleepSecs time.Duration, station string) {
+func tides(sleepDuration time.Duration, station string) {
 	for {
 		reading, ok := noaa.Tides(station)
 		if ok {
 			fmt.Println("Reading:", reading)
 		}
-		time.Sleep(sleepSecs)
+		time.Sleep(sleepDuration)
 	}
 }
 
 // airGap looks up instantaneous air gap (distance from bottom of bridge to water) for a given NOAA station.
-func airGap(sleepSecs time.Duration, station string) {
+func airGap(sleepDuration time.Duration, station string) {
 	for {
 		reading, ok := noaa.AirGap(station)
 		if ok {
 			fmt.Println("Reading:", reading)
 		}
-		time.Sleep(sleepSecs)
+		time.Sleep(sleepDuration)
 	}
 }
 
 // dbStats prints interesting statistics about the size of the database.
-func dbStats(sleepSecs time.Duration) {
+func dbStats(sleepDuration time.Duration) {
 	for {
 		msg := ""
 
@@ -355,7 +357,7 @@ func dbStats(sleepSecs time.Duration) {
 			fmt.Println("##", msg, "##")
 		}
 
-		time.Sleep(sleepSecs)
+		time.Sleep(sleepDuration)
 	}
 }
 

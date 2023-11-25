@@ -5,12 +5,13 @@ package alert
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/erikbryant/beepspeak"
-	"github.com/erikbryant/shipahoy/aismmsi"
-	"github.com/erikbryant/shipahoy/database"
 	"math"
 	"strings"
 	"time"
+
+	"github.com/erikbryant/beepspeak"
+	"github.com/erikbryant/shipahoy/aismmsi"
+	"github.com/erikbryant/shipahoy/database"
 )
 
 // readableName makes a string more human readable by removing all non alphanumeric and non-punctuation.
@@ -49,8 +50,7 @@ func readableCourse(heading float64) string {
 	} else if course < 100 {
 		courseText = fmt.Sprintf("%d", course)
 	} else {
-		var hundreds int
-		hundreds = course / 100
+		hundreds := course / 100
 		tens := course % 100
 		if tens < 10 {
 			courseText = fmt.Sprintf("%dO%d", hundreds, tens)

@@ -2,6 +2,7 @@ package noaa
 
 import (
 	"fmt"
+
 	"github.com/erikbryant/shipahoy/database"
 	"github.com/erikbryant/web"
 )

@@ -17,7 +17,7 @@ func ValidateMmsi(mmsi string) error {
 		return err
 	}
 	if !matched {
-		return fmt.Errorf("Invalid MMSI found: %s", mmsi)
+		return fmt.Errorf("invalid MMSI found: %s", mmsi)
 	}
 
 	return nil

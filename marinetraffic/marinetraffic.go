@@ -2,6 +2,7 @@ package marinetraffic
 
 import (
 	"fmt"
+
 	"github.com/erikbryant/web"
 )
 
@@ -25,14 +26,14 @@ func ShipsInRegion(x, y, zoom string) ([]map[string]string, error) {
 	}
 
 	if web.ToInt(region["type"]) != 1 {
-		return nil, fmt.Errorf("Unexpected response type %v", region)
+		return nil, fmt.Errorf("unexpected response type %v", region)
 	}
 
 	data := region["data"].(map[string]interface{})
 	rows := data["rows"].([]interface{})
 	areaShips := web.ToInt(data["areaShips"])
 	if len(rows) != areaShips {
-		return nil, fmt.Errorf("Number of ships returned did not match expected %d %v", areaShips, region)
+		return nil, fmt.Errorf("number of ships returned did not match expected %d %v", areaShips, region)
 	}
 
 	// Convert from nested interfaces to defined types.
