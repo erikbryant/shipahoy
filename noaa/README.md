@@ -1,14 +1,14 @@
 # Tidal Information
 
-https://tidesandcurrents.noaa.gov/api/
+[tidesandcurrents.noaa.gov API](https://tidesandcurrents.noaa.gov/api/)
 
-Presidio tidal sensors https://tidesandcurrents.noaa.gov/stationhome.html?id=9414290
+[Presidio tidal sensors](https://tidesandcurrents.noaa.gov/stationhome.html?id=9414290)
 
-Bay Bridge Air Gap sensors https://tidesandcurrents.noaa.gov/map/index.html?id=9414304
+[Bay Bridge Air Gap sensors](https://tidesandcurrents.noaa.gov/map/index.html?id=9414304)
 
 Example queries
 
-https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=datums&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
+[Example 1](https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=datums&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml)
 
 ```xml
 <data>
@@ -31,7 +31,7 @@ https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&pro
 
 ## Mean Lower Low Water for Presidio
 
-https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=water_level&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
+[Example 2](https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&product=water_level&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml)
 
 ```xml
 <data>
@@ -44,7 +44,7 @@ https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414290&pro
 
 ## Air gap for Bay Bridge D-E span
 
-https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414304&product=air_gap&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml
+[Example 3](https://tidesandcurrents.noaa.gov/api/datagetter?date=latest&station=9414304&product=air_gap&datum=mllw&units=english&time_zone=lst_ldt&application=web_services&format=xml)
 
 ```xml
 <data>

@@ -1,10 +1,10 @@
 # Marine Traffic REST API
 
-https://www.marinetraffic.com/en/ais-api-services/documentation/
+[marinetraffic.com API](https://www.marinetraffic.com/en/ais-api-services/documentation/)
 
 ## Ships in Region
 
-https://www.marinetraffic.com/getData/get_data_json_4/z:14/X:1309/Y:3165/station:0
+[marinetraffic.com example](https://www.marinetraffic.com/getData/get_data_json_4/z:14/X:1309/Y:3165/station:0)
 
 * z - The zoom level
 * X - ??

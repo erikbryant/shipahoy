@@ -4,7 +4,7 @@ This application stores ship sightings in an SQL database. You need to have one 
 
 To easily access the `mysql` binary, add `/usr/local/mysql/bin` to the path.
 
-# SQL statements
+## SQL statements
 
 If you already have restore files (`ships.sql.gz` and `sightings.sql.gz`) you can skip these steps. The `restore.sh` script will do these for you.
 
@@ -54,7 +54,7 @@ CREATE TABLE ships (
  );
 ```
 
-# Database Backup / Restore
+## Database Backup / Restore
 
 ```sh
 mysqldump -u ships -p db_name t1 > dump.sql

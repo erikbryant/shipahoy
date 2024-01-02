@@ -2,7 +2,9 @@
 
 Ships in a region response record from VesselFinder. The list is a binary structure.
 
+```text
 GET https://www.vesselfinder.com/api/pub/vesselsonmap?bbox=-73581179%2C22791346%2C-73451814%2C22982834&zoom=12&mmsi=0&ref=20639.80311629575&show_names=1
+```
 
 * Header bytes: `CECP`
 * One packed record per ship:
