@@ -28,10 +28,16 @@ github.com/envoyproxy/protoc-gen-validate v1.0.2 h1:QkIBuU5k+x7/QXPvPPnWXWlCdaBF
 github.com/envoyproxy/protoc-gen-validate v1.0.2/go.mod h1:GpiZQP3dDbg4JouG/NNS7QWXpgx6x8QiMKdmN72jogE=
 github.com/erikbryant/aes v0.2.0 h1:nDs9POVjoYNzSsW40JlTOmlcoEnG6avPe7wieZoQlvw=
 github.com/erikbryant/aes v0.2.0/go.mod h1:LUWSBXtHE/RAN102ZlCR4weAaNtEXPWQpOVg3g/Wmec=
+github.com/erikbryant/aes v0.3.0 h1:Ap4KGrn9yaaiOticxf1MD2KBKKvJKiy45QEc1ng814k=
+github.com/erikbryant/aes v0.3.0/go.mod h1:u+FeFwr15zM2pTGJGCEPjZKZgESvNLrNnInKR9N83zE=
 github.com/erikbryant/beepspeak v0.4.0 h1:+Wm1fwsg9IJpyRmXWHF763e5ar+P+vwHycYWfuPf4hM=
 github.com/erikbryant/beepspeak v0.4.0/go.mod h1:rKft3ULMmw4sX1766t0Ovkkrv3ZqEeNO32yQl3cokZk=
+github.com/erikbryant/beepspeak v0.5.0 h1:ykBGYLXT/A/uPxwwE8gLSnOzwUqM273/FxWMRCjz9/E=
+github.com/erikbryant/beepspeak v0.5.0/go.mod h1:sGRJAK/3nx1k8QmvDpRu2buVkgIlBbDMs7KyohDDabg=
 github.com/erikbryant/web v0.7.0 h1:x5TWZkY+Jcr8K31qGwybUfCjJvCfVoyvQr1IYLIbb7E=
 github.com/erikbryant/web v0.7.0/go.mod h1:T9X91jpCgLGuVTyCMZrRPnu+of2XZVQfpQA7emieISU=
+github.com/erikbryant/web v0.8.0 h1:2AKBweydq8P6Xu6hOakK7QXTKQHVPORoWj5rV9NOvVI=
+github.com/erikbryant/web v0.8.0/go.mod h1:2RmWHCj2fNhQHSt8VO5e91EBf2flEBGGxQTiYhROcBo=
 github.com/faiface/beep v1.1.0 h1:A2gWP6xf5Rh7RG/p9/VAW2jRSDEGQm5sbOb38sf5d4c=
 github.com/faiface/beep v1.1.0/go.mod h1:6I8p6kK2q4opL/eWb+kAkk38ehnTunWeToJB+s51sT4=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
