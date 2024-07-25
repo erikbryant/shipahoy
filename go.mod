@@ -14,8 +14,8 @@ require (
 	cloud.google.com/go/auth v0.7.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.3 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
-	cloud.google.com/go/longrunning v0.5.10 // indirect
-	cloud.google.com/go/texttospeech v1.7.10 // indirect
+	cloud.google.com/go/longrunning v0.5.11 // indirect
+	cloud.google.com/go/texttospeech v1.7.11 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/faiface/beep v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
