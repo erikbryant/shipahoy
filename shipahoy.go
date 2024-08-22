@@ -74,7 +74,7 @@ func init() {
 
 // myGeo returns the lat/lon pair of the location of the computer running this program.
 func myGeo() (lat, lon float64) {
-	// myIP := web.Request("http://ifconfig.co/ip") <-- site has malware
+	// myIP := web.RequestBody("http://ifconfig.co/ip") <-- site has malware
 	location, err := web.RequestJSON("http://api.ipstack.com/check?access_key="+geoAPIKey, map[string]string{})
 	if err != nil {
 		fmt.Println("ERROR: Unable to get geo location. Assuming you are home. Message:", err)

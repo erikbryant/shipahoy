@@ -44,17 +44,17 @@ func ShipsInRegion(latA, lonA, latB, lonB float64, c chan map[string]interface{}
 
 	url := "https://www.vesselfinder.com/api/pub/mp2?bbox=" + lonAs + "%2C" + latAs + "%2C" + lonBs + "%2C" + latBs + "&zoom=12&mmsi=0&show_names=1"
 
-	region, err := web.Request(url, map[string]string{})
+	region, err := web.RequestBody(url, map[string]string{})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	if len(region) < 4 {
-		fmt.Println("Too little data returned from web.Request(): ", region)
+		fmt.Println("Too little data returned: ", region)
 		return
 	}
 	if region[0:2] != "CE" {
-		fmt.Println("Unexpected data returned from web.Request(): ", region)
+		fmt.Println("Unexpected data returned: ", region)
 		return
 	}
 
