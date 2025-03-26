@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/erikbryant/aes v0.4.0
-	github.com/erikbryant/beepspeak v0.6.0
+	github.com/erikbryant/beepspeak v0.7.0
 	github.com/erikbryant/web v0.10.0
 	github.com/go-sql-driver/mysql v1.9.1
 )
