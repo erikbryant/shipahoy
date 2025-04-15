@@ -53,8 +53,8 @@ func ShipsInRegion(latA, lonA, latB, lonB float64, c chan map[string]interface{}
 		fmt.Println("Too little data returned: ", region)
 		return
 	}
-	if region[0:2] != "CE" {
-		fmt.Println("Unexpected data returned: ", region)
+	if region[0] != 'C' || region[1] != 0 || region[2] != 8 || region[3] != 'P' {
+		fmt.Printf("Not a valid CP region: %v %v %v %v\n", region[0], region[1], region[2], region[3])
 		return
 	}
 
