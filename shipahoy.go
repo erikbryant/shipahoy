@@ -186,7 +186,7 @@ func lookAtShips(latA, lonA, latB, lonB float64) {
 	// Get the MarineTraffic details for this area.
 	mtResponse, err := marinetraffic.ShipsInRegion("1309", "3165", "14")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error getting ShipsInRegion:", err)
 	}
 
 	go vesselfinder.ShipsInRegion(latA, lonA, latB, lonB, c)
