@@ -45,6 +45,7 @@ GET https://www.vesselfinder.com/api/pub/click/367003250
   "cu": 246.7,              course
   "dest": "FALSE RIVER",    destination
   "draught": 33,            draught
+  "drm": 13.9
   "dw": 0,                  deadweight
   "etaTS": 1588620600,      ETA timestamp
   "gt": 0,                  gross tonnage
@@ -56,6 +57,7 @@ GET https://www.vesselfinder.com/api/pub/click/367003250
   "r": 2,
   "sc.": 0,                 status: 0=underway, 1=at anchor, 2=at anchor(?)
   "sl": false,              newer position available via satellite?
+  "slts": 174463992300      newer position timestamp
   "ss": 0.1,                speed (knots)
   "ts": 1587883051          timestamp of last position received
   "type": "Towing vessel",  AIS type
