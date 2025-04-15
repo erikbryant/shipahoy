@@ -30,6 +30,11 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	if *passPhrase == "" {
+		fmt.Println("You must specify -passPhrase")
+		os.Exit(1)
+	}
+
 	err := shipahoy.Start(*passPhrase)
 	if err != nil {
 		fmt.Println(err)
