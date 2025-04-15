@@ -40,16 +40,15 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 	defer shipahoy.Stop()
 
-	// Only run the profile for a short while.
+	// If profiling, wait for a representative amount of time and then exit
 	if *cpuprofile != "" {
 		time.Sleep(3 * 60 * time.Second)
 		os.Exit(0)
 	}
 
-	// Let the scanners run forever.
+	// Let the scanners run forever
 	for {
 		time.Sleep(24 * 60 * 60 * time.Second)
 	}
