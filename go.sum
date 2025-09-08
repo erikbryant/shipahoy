@@ -18,8 +18,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/erikbryant/aes v0.4.0 h1:obZHjv5b+cxyGocqvKMiCpN4QGjRwG5r7vPrYtWT3nA=
 github.com/erikbryant/aes v0.4.0/go.mod h1:Awmp9n4/zhnQgZ/YmkotbY2TEKFLi9Zh87cRbw5WdhM=
-github.com/erikbryant/beepspeak v0.8.0 h1:E5mkGfOldsSaWccIe4hmEVRwHQC37uv5DpWhmgAy6LQ=
-github.com/erikbryant/beepspeak v0.8.0/go.mod h1:GfzuEv717MZlnL3MKW3SfK7L0u5jbNd3LqgzsXQIJVk=
+github.com/erikbryant/beepspeak v0.9.1 h1:rUCmnd3Fc4j94xnPpi4X2kYum0MrYDTlBaln3CrPj8Y=
+github.com/erikbryant/beepspeak v0.9.1/go.mod h1:x1eyeX0a3Bd85gpyn99F/AVFb0/RQss4AePtLUwai7Q=
 github.com/erikbryant/web v0.10.0 h1:pVq1phHzm0xigWBY7qGxTqg5Cd3qA60N9X/ZIdLfI0g=
 github.com/erikbryant/web v0.10.0/go.mod h1:NNP71ST7uai5s5vV2s92LJQyoLlr67+fbz8spZJNW4c=
 github.com/faiface/beep v1.1.0 h1:A2gWP6xf5Rh7RG/p9/VAW2jRSDEGQm5sbOb38sf5d4c=
