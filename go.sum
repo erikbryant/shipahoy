@@ -101,8 +101,8 @@ go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42s
 golang.org/x/crypto v0.43.0 h1:dduJYIi3A3KOfdGOHX8AVZ/jGiyPa3IbBozJ5kNuE04=
 golang.org/x/crypto v0.43.0/go.mod h1:BFbav4mRNlXJL4wNeejLpWxB7wMbc79PdRGhWKncxR0=
 golang.org/x/exp v0.0.0-20190306152737-a1d7652674e8/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
-golang.org/x/exp/shiny v0.0.0-20251009144603-d2f985daa21b h1:lv/t6E0k4z4dh3SBdRosNoyh0NzLB33QXTz9yrszOks=
-golang.org/x/exp/shiny v0.0.0-20251009144603-d2f985daa21b/go.mod h1:QMAAUorQ8fzCK0C6mr4X4XV9BEp7Al6+jlejJvfYKw4=
+golang.org/x/exp/shiny v0.0.0-20251017212417-90e834f514db h1:NmsmaSkEAq6A8r0Q78WxD0IygJNCs6J3uYDgNuPkXYM=
+golang.org/x/exp/shiny v0.0.0-20251017212417-90e834f514db/go.mod h1:QMAAUorQ8fzCK0C6mr4X4XV9BEp7Al6+jlejJvfYKw4=
 golang.org/x/image v0.0.0-20190220214146-31aff87c08e9/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
 golang.org/x/image v0.0.0-20190227222117-0694c2d4d067/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
 golang.org/x/image v0.32.0 h1:6lZQWq75h7L5IWNk0r+SCpUJ6tUVd3v4ZHnbRKLkUDQ=

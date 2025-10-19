@@ -34,7 +34,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20251009144603-d2f985daa21b // indirect
+	golang.org/x/exp/shiny v0.0.0-20251017212417-90e834f514db // indirect
 	golang.org/x/image v0.32.0 // indirect
 	golang.org/x/mobile v0.0.0-20251009145931-8baca8bf4eeb // indirect
 	golang.org/x/net v0.46.0 // indirect
