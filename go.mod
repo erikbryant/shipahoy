@@ -24,7 +24,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
-	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.18.0 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/hajimehoshi/oto v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -34,19 +34,19 @@ require (
 	go.opentelemetry.io/otel v1.42.0 // indirect
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
 	go.opentelemetry.io/otel/trace v1.42.0 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20260218203240-3dfff04db8fa // indirect
-	golang.org/x/image v0.36.0 // indirect
-	golang.org/x/mobile v0.0.0-20260217195705-b56b3793a9c4 // indirect
-	golang.org/x/net v0.51.0 // indirect
+	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/exp/shiny v0.0.0-20260312153236-7ab1446f8b90 // indirect
+	golang.org/x/image v0.37.0 // indirect
+	golang.org/x/mobile v0.0.0-20260312152759-81488f6aeb60 // indirect
+	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/api v0.269.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
+	google.golang.org/api v0.271.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260311181403-84a4fc48630c // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260311181403-84a4fc48630c // indirect
 	google.golang.org/grpc v1.79.2 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
