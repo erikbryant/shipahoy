@@ -1,6 +1,6 @@
 module github.com/erikbryant/shipahoy
 
-go 1.25.5
+go 1.26.3
 
 require (
 	github.com/erikbryant/aes v0.4.0
