@@ -3,9 +3,9 @@ module github.com/erikbryant/shipahoy
 go 1.26.3
 
 require (
-	github.com/erikbryant/aes v0.4.0
-	github.com/erikbryant/beepspeak v0.9.1
-	github.com/erikbryant/web v0.10.0
+	github.com/erikbryant/aes v0.5.0
+	github.com/erikbryant/beepspeak v0.10.0
+	github.com/erikbryant/web v0.11.0
 	github.com/go-sql-driver/mysql v1.10.0
 )
 
@@ -35,7 +35,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20260709172345-9ea1abe57597 // indirect
+	golang.org/x/exp/shiny v0.0.0-20260718201538-764159d718ef // indirect
 	golang.org/x/image v0.44.0 // indirect
 	golang.org/x/mobile v0.0.0-20260709172247-6129f5bee9d5 // indirect
 	golang.org/x/net v0.57.0 // indirect
