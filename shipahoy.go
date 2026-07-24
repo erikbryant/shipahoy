@@ -373,7 +373,7 @@ func Start(passPhrase string) error {
 		return err
 	}
 
-	err = beepspeak.InitSay(gcpAuthCrypt, passPhrase)
+	err = beepspeak.NewCredentials(gcpAuthCrypt, passPhrase)
 	if err != nil {
 		return err
 	}
